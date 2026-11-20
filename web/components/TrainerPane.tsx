@@ -39,6 +39,7 @@ export function TrainerPane({
   const setHintVisible = useStudioStore((s) => s.setHintVisible);
   const testResults = useStudioStore((s) => s.testResults);
   const trainerPaneWidth = useStudioStore((s) => s.trainerPaneWidth);
+  const toggleTrainer = useStudioStore((s) => s.toggleTrainer);
 
   const idx = allSubconcepts.findIndex((s) => s.id === sub.id);
   const isCompleted = completedIds.includes(sub.id);
@@ -63,11 +64,23 @@ export function TrainerPane({
     >
       <div className="trainer-header">
         <div className="concept-meta">
-          <span className="badge badge-accent">
-            {sub.code} • {sub.moduleTitle}
-          </span>
-          <span className="badge badge-outline">{sub.difficulty || 'Intermediate'}</span>
-          {isCompleted && <span className="badge badge-success">✓ Completed</span>}
+          <div className="concept-meta-badges">
+            <span className="badge badge-accent">{sub.code}</span>
+            <span className="concept-module" title={sub.moduleTitle}>
+              {sub.moduleTitle}
+            </span>
+            <span className="badge badge-outline">{sub.difficulty || 'Intermediate'}</span>
+            {isCompleted && <span className="badge badge-success">✓ Done</span>}
+          </div>
+          <button
+            type="button"
+            className="icon-close-btn"
+            onClick={toggleTrainer}
+            title="Close Lesson panel"
+            aria-label="Close Lesson panel"
+          >
+            ✕
+          </button>
         </div>
         <h1 className="concept-title">{sub.title}</h1>
         <p className="concept-summary">{sub.summary}</p>
@@ -78,14 +91,14 @@ export function TrainerPane({
             className={`trainer-tab ${trainerTab === 'learn' ? 'active' : ''}`}
             onClick={() => setTrainerTab('learn', sub)}
           >
-            📖 Concept &amp; Example
+            📖 Concept
           </button>
           <button
             type="button"
             className={`trainer-tab ${trainerTab === 'exercise' ? 'active' : ''}`}
             onClick={() => setTrainerTab('exercise', sub)}
           >
-            🏋️ Hands-on Exercise
+            🏋️ Exercise
           </button>
         </div>
       </div>

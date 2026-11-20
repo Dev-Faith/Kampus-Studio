@@ -23,6 +23,7 @@ export interface StudioState {
   activeFileIndex: number;
   sidebarCollapsed: boolean;
   trainerCollapsed: boolean;
+  simulatorCollapsed: boolean;
   sidebarWidth: number;
   trainerPaneWidth: number;
   editorHeightPercent: number;
@@ -59,6 +60,8 @@ export interface StudioState {
   setActiveFileIndex: (idx: number) => void;
   toggleSidebar: () => void;
   toggleTrainer: () => void;
+  toggleSimulator: () => void;
+  cycleCodeExpandStep: () => void;
   setSidebarWidth: (width: number) => void;
   setTrainerPaneWidth: (width: number) => void;
   setEditorHeightPercent: (pct: number) => void;
@@ -113,6 +116,7 @@ export const useStudioStore = create<StudioState>()(
       activeFileIndex: 0,
       sidebarCollapsed: false,
       trainerCollapsed: false,
+      simulatorCollapsed: false,
       sidebarWidth: 270,
       trainerPaneWidth: 420,
       editorHeightPercent: 50,
@@ -271,6 +275,36 @@ export const useStudioStore = create<StudioState>()(
       setActiveFileIndex: (activeFileIndex: number) => set({ activeFileIndex }),
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       toggleTrainer: () => set((s) => ({ trainerCollapsed: !s.trainerCollapsed })),
+      toggleSimulator: () => set((s) => ({ simulatorCollapsed: !s.simulatorCollapsed })),
+      cycleCodeExpandStep: () =>
+        set((s) => {
+          const isTrainerMode = s.mode === 'trainer';
+          // Step 1: Middle panel (TrainerPane) disappears first
+          if (isTrainerMode && !s.trainerCollapsed) {
+            return { trainerCollapsed: true };
+          }
+          // Step 2: Left panel (CurriculumSidebar) disappears second
+          if (!s.sidebarCollapsed) {
+            return {
+              trainerCollapsed: isTrainerMode ? true : s.trainerCollapsed,
+              sidebarCollapsed: true,
+            };
+          }
+          // Step 3: Bottom panel (HttpSimulator) disappears third
+          if (!s.simulatorCollapsed) {
+            return {
+              trainerCollapsed: isTrainerMode ? true : s.trainerCollapsed,
+              sidebarCollapsed: true,
+              simulatorCollapsed: true,
+            };
+          }
+          // Reset: Restore all 3 panels
+          return {
+            trainerCollapsed: false,
+            sidebarCollapsed: false,
+            simulatorCollapsed: false,
+          };
+        }),
       setSidebarWidth: (sidebarWidth: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(520, sidebarWidth)) }),
       setTrainerPaneWidth: (trainerPaneWidth: number) =>
@@ -366,6 +400,7 @@ export const useStudioStore = create<StudioState>()(
         currentTemplateId: state.currentTemplateId,
         sidebarCollapsed: state.sidebarCollapsed,
         trainerCollapsed: state.trainerCollapsed,
+        simulatorCollapsed: state.simulatorCollapsed,
         sidebarWidth: state.sidebarWidth,
         trainerPaneWidth: state.trainerPaneWidth,
         editorHeightPercent: state.editorHeightPercent,

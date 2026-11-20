@@ -69,6 +69,7 @@ export function HttpSimulator({
   const setEditorHeightPercent = useStudioStore((s) => s.setEditorHeightPercent);
   const payloadHeight = useStudioStore((s) => s.payloadHeight);
   const setPayloadHeight = useStudioStore((s) => s.setPayloadHeight);
+  const toggleSimulator = useStudioStore((s) => s.toggleSimulator);
   const stateVersion = useStudioStore((s) => s.stateVersion);
 
   const bodyStatus = useMemo(() => healJsonString(reqBody), [reqBody]);
@@ -317,7 +318,7 @@ export function HttpSimulator({
             className={`inspector-tab ${inspectorTab === 'response' ? 'active' : ''}`}
             onClick={() => setInspectorTab('response')}
           >
-            📦 HTTP Response
+            📦 Response
             <span className={`status-pill ${statusClass}`}>
               {res ? `${res.status} ${res.statusText || ''}`.trim() : 'Ready'}
             </span>
@@ -329,7 +330,7 @@ export function HttpSimulator({
             className={`inspector-tab ${inspectorTab === 'pipeline' ? 'active' : ''}`}
             onClick={() => setInspectorTab('pipeline')}
           >
-            🧅 Pipeline Lifecycle Trace
+            🧅 Pipeline
             <span className="badge badge-xs">{res?.pipeline?.length || 0}</span>
           </button>
 
@@ -338,7 +339,7 @@ export function HttpSimulator({
             className={`inspector-tab ${inspectorTab === 'tests' ? 'active' : ''}`}
             onClick={() => setInspectorTab('tests')}
           >
-            🧪 Exercise Test Runner
+            🧪 Tests
             {testResults.length > 0 && (
               <span className="badge badge-xs">
                 {passedTestsCount}/{testResults.length}
@@ -351,39 +352,52 @@ export function HttpSimulator({
             className={`inspector-tab ${inspectorTab === 'state' ? 'active' : ''}`}
             onClick={() => setInspectorTab('state')}
           >
-            🗄️ DB, Cache &amp; Logs
+            🗄️ State
           </button>
 
           <div className="inspector-tabs-actions">
             <button
               type="button"
-              className="btn btn-ghost btn-xs"
-              title="Expand Inspector Tabs dock to see full Response, Pipeline, and Test output"
+              className="tb-icon-btn"
+              title="Maximize output (shrink editor)"
+              aria-label="Maximize output"
               onClick={() => {
                 setEditorHeightPercent(24);
                 setPayloadHeight(52);
               }}
             >
-              ⬆ Expand Tabs
+              ⤒
             </button>
             <button
               type="button"
-              className="btn btn-ghost btn-xs"
-              title="Restore balanced 50/50 split between Editor and Output"
+              className="tb-icon-btn"
+              title="Balanced 50/50 split"
+              aria-label="Balanced split"
               onClick={() => {
                 setEditorHeightPercent(50);
                 setPayloadHeight(68);
               }}
             >
-              ⬌ 50/50
+              ⇕
             </button>
             <button
               type="button"
-              className="btn btn-ghost btn-xs"
-              title="Expand TypeScript Code Editor height"
+              className="tb-icon-btn"
+              title="Maximize editor (shrink output)"
+              aria-label="Maximize editor"
               onClick={() => setEditorHeightPercent(72)}
             >
-              ⬇ Tall Editor
+              ⤓
+            </button>
+            <span className="tb-divider" aria-hidden="true" />
+            <button
+              type="button"
+              className="tb-icon-btn tb-close"
+              title="Close HTTP panel"
+              aria-label="Close HTTP panel"
+              onClick={toggleSimulator}
+            >
+              ✕
             </button>
           </div>
         </div>

@@ -53,6 +53,8 @@ export default function StudioHomePage() {
   const bumpStateVersion = useStudioStore((s) => s.bumpStateVersion);
   const sidebarCollapsed = useStudioStore((s) => s.sidebarCollapsed);
   const trainerCollapsed = useStudioStore((s) => s.trainerCollapsed);
+  const simulatorCollapsed = useStudioStore((s) => s.simulatorCollapsed);
+  const toggleSimulator = useStudioStore((s) => s.toggleSimulator);
   const sidebarWidth = useStudioStore((s) => s.sidebarWidth);
   const setSidebarWidth = useStudioStore((s) => s.setSidebarWidth);
   const trainerPaneWidth = useStudioStore((s) => s.trainerPaneWidth);
@@ -494,48 +496,74 @@ export default function StudioHomePage() {
               onVerifyExercise={() => void handleVerifyExercise()}
             />
 
-            <div
-              className="resizer-h"
-              title="Drag up/down to resize Code Editor vs HTTP Simulator (double-click for 50/50)"
-              onDoubleClick={() => setEditorHeightPercent(50)}
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const targetEl = e.currentTarget;
-                targetEl.classList.add('dragging');
-                document.body.classList.add('is-resizing-row');
-                const wbEl = targetEl.closest('.workbench') as HTMLElement | null;
-                const rect = wbEl?.getBoundingClientRect();
-                const onMove = (ev: MouseEvent) => {
-                  if (!rect) return;
-                  const relY = ev.clientY - rect.top;
-                  const pct = Math.round((relY / rect.height) * 100);
-                  setEditorHeightPercent(pct);
-                };
-                const onUp = () => {
-                  targetEl.classList.remove('dragging');
-                  document.body.classList.remove('is-resizing-row');
-                  window.removeEventListener('mousemove', onMove);
-                  window.removeEventListener('mouseup', onUp);
-                };
-                window.addEventListener('mousemove', onMove);
-                window.addEventListener('mouseup', onUp);
-              }}
-            />
+            {!simulatorCollapsed ? (
+              <>
+                <div
+                  className="resizer-h"
+                  title="Drag up/down to resize Code Editor vs HTTP Simulator (double-click for 50/50)"
+                  onDoubleClick={() => setEditorHeightPercent(50)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    const targetEl = e.currentTarget;
+                    targetEl.classList.add('dragging');
+                    document.body.classList.add('is-resizing-row');
+                    const wbEl = targetEl.closest('.workbench') as HTMLElement | null;
+                    const rect = wbEl?.getBoundingClientRect();
+                    const onMove = (ev: MouseEvent) => {
+                      if (!rect) return;
+                      const relY = ev.clientY - rect.top;
+                      const pct = Math.round((relY / rect.height) * 100);
+                      setEditorHeightPercent(pct);
+                    };
+                    const onUp = () => {
+                      targetEl.classList.remove('dragging');
+                      document.body.classList.remove('is-resizing-row');
+                      window.removeEventListener('mousemove', onMove);
+                      window.removeEventListener('mouseup', onUp);
+                    };
+                    window.addEventListener('mousemove', onMove);
+                    window.addEventListener('mouseup', onUp);
+                  }}
+                />
 
-            <HttpSimulator
-              presets={activePresets}
-              onSendRequest={() => void handleSendRequest()}
-              onBurstRequest={() => void handleBurstRequest()}
-              onApplyPresetAndSend={(preset) => {
-                applyPreset(preset);
-                void handleSendRequest({
-                  method: preset.method || 'GET',
-                  url: preset.url || '/',
-                  headers: preset.headers || {},
-                  body: preset.body ?? '',
-                });
-              }}
-            />
+                <HttpSimulator
+                  presets={activePresets}
+                  onSendRequest={() => void handleSendRequest()}
+                  onBurstRequest={() => void handleBurstRequest()}
+                  onApplyPresetAndSend={(preset) => {
+                    applyPreset(preset);
+                    void handleSendRequest({
+                      method: preset.method || 'GET',
+                      url: preset.url || '/',
+                      headers: preset.headers || {},
+                      body: preset.body ?? '',
+                    });
+                  }}
+                />
+              </>
+            ) : (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '4px 12px',
+                  background: 'rgba(15, 23, 42, 0.92)',
+                  borderTop: '1px solid rgba(148, 163, 184, 0.18)',
+                  fontSize: 11.5,
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <span>⬓ Bottom Panel (HTTP Simulator, Pipeline Trace &amp; Test Runner) hidden</span>
+                <button
+                  type="button"
+                  className="btn btn-xs btn-secondary"
+                  onClick={toggleSimulator}
+                >
+                  ⬆ Show Bottom Panel
+                </button>
+              </div>
+            )}
           </section>
         </main>
       )}

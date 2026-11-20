@@ -19,6 +19,7 @@ export function CurriculumSidebar({
 }: CurriculumSidebarProps) {
   const mode = useStudioStore((s) => s.mode);
   const sidebarCollapsed = useStudioStore((s) => s.sidebarCollapsed);
+  const toggleSidebar = useStudioStore((s) => s.toggleSidebar);
   const sidebarWidth = useStudioStore((s) => s.sidebarWidth);
   const currentSubconceptId = useStudioStore((s) => s.currentSubconceptId);
   const currentTemplateId = useStudioStore((s) => s.currentTemplateId);
@@ -49,7 +50,17 @@ export function CurriculumSidebar({
               <span className="sidebar-label" style={{ marginBottom: 0 }}>
                 KAMPUS CURRICULUM
               </span>
-              <span className="badge badge-xs">14 Modules • 32 Lessons</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button
+                  type="button"
+                  className="icon-close-btn"
+                  onClick={toggleSidebar}
+                  title="Close Modules panel"
+                  aria-label="Close Modules panel"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
             <div className="search-input-wrap">
               <span className="search-icon">⌕</span>
@@ -139,7 +150,20 @@ export function CurriculumSidebar({
       ) : (
         <div id="sidebar-sandbox-view">
           <div className="sidebar-header">
-            <span className="sidebar-label">KAMPUS SANDBOX BLUEPRINTS</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="sidebar-label" style={{ marginBottom: 0 }}>
+                KAMPUS SANDBOX BLUEPRINTS
+              </span>
+              <button
+                type="button"
+                className="icon-close-btn"
+                onClick={toggleSidebar}
+                title="Close Modules panel"
+                aria-label="Close Modules panel"
+              >
+                ✕
+              </button>
+            </div>
             <p className="sidebar-hint">
               Load a multi-file Kampus PropTech architecture. All edits persist in localStorage.
             </p>

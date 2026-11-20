@@ -11,10 +11,51 @@ interface CodeWorkbenchProps {
   onVerifyExercise: () => void;
 }
 
+function PanelIcon({ variant }: { variant: 'left' | 'middle' | 'bottom' }) {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.2" />
+      {variant === 'left' && <rect x="2.1" y="3.1" width="3.6" height="9.8" rx="1" fill="currentColor" />}
+      {variant === 'middle' && (
+        <rect x="5.3" y="3.1" width="4.2" height="9.8" fill="currentColor" opacity="0.9" />
+      )}
+      {variant === 'bottom' && <rect x="2.1" y="9" width="11.8" height="3.9" rx="1" fill="currentColor" />}
+    </svg>
+  );
+}
+
+function MaximizeIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function RestoreIcon() {
+  return (
+    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path
+        d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+
 export function CodeWorkbench({
   defaultFiles,
   modeLabel,
-  onSendRequest,
   onVerifyExercise,
 }: CodeWorkbenchProps) {
   const activeFileIndex = useStudioStore((s) => s.activeFileIndex);
@@ -23,6 +64,16 @@ export function CodeWorkbench({
   const updateActiveFileCode = useStudioStore((s) => s.updateActiveFileCode);
   const lastSavedAt = useStudioStore((s) => s.lastSavedAt);
   const editorHeightPercent = useStudioStore((s) => s.editorHeightPercent);
+  const mode = useStudioStore((s) => s.mode);
+  const sidebarCollapsed = useStudioStore((s) => s.sidebarCollapsed);
+  const trainerCollapsed = useStudioStore((s) => s.trainerCollapsed);
+  const simulatorCollapsed = useStudioStore((s) => s.simulatorCollapsed);
+  const toggleSidebar = useStudioStore((s) => s.toggleSidebar);
+  const toggleTrainer = useStudioStore((s) => s.toggleTrainer);
+  const toggleSimulator = useStudioStore((s) => s.toggleSimulator);
+  const cycleCodeExpandStep = useStudioStore((s) => s.cycleCodeExpandStep);
+  const sidebarWidth = useStudioStore((s) => s.sidebarWidth);
+  const trainerPaneWidth = useStudioStore((s) => s.trainerPaneWidth);
 
   const files = getCurrentFiles(defaultFiles);
   const activeFile = files[activeFileIndex] || files[0] || { name: 'main.ts', code: '' };
@@ -142,6 +193,40 @@ export function CodeWorkbench({
     }
   }, [activeFile.name, activeFile.code]);
 
+  // Relayout Monaco whenever any surrounding panel is toggled or resized
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      editorInstanceRef.current?.layout?.();
+    }, 30);
+    return () => clearTimeout(timer);
+  }, [
+    sidebarCollapsed,
+    trainerCollapsed,
+    simulatorCollapsed,
+    sidebarWidth,
+    trainerPaneWidth,
+    editorHeightPercent,
+  ]);
+
+  // 3-step progressive "large screen" state: Middle → Left → Bottom
+  const isTrainerMode = mode === 'trainer';
+  const stepFlags = isTrainerMode
+    ? [trainerCollapsed, sidebarCollapsed, simulatorCollapsed]
+    : [sidebarCollapsed, simulatorCollapsed];
+  let stepsDone = 0;
+  for (const done of stepFlags) {
+    if (!done) break;
+    stepsDone++;
+  }
+  const totalSteps = stepFlags.length;
+  const allExpanded = stepsDone === totalSteps;
+  const nextStepNames = isTrainerMode
+    ? ['Hide Lesson panel', 'Hide Modules panel', 'Hide HTTP panel (fullscreen editor)']
+    : ['Hide Modules panel', 'Hide HTTP panel (fullscreen editor)'];
+  const expandTitle = allExpanded
+    ? 'Restore all panels'
+    : `Focus mode — step ${stepsDone + 1} of ${totalSteps}: ${nextStepNames[stepsDone]}`;
+
   const getFileRoleIcon = (fileName: string) => {
     const lower = fileName.toLowerCase();
     if (lower.endsWith('.spec.ts') || lower.endsWith('.test.ts')) return '✅';
@@ -162,80 +247,103 @@ export function CodeWorkbench({
   };
 
   return (
-    <div className="editor-section" style={{ height: `${editorHeightPercent}%` }}>
+    <div
+      className="editor-section"
+      style={{ height: simulatorCollapsed ? '100%' : `${editorHeightPercent}%` }}
+    >
       <div className="editor-tabbar">
-        <div className="file-tabs">
+        <div className="file-tabs" role="tablist" aria-label="Open files">
           {files.map((f, idx) => {
             const hasTodo = f.code?.includes('// TODO');
             return (
               <button
                 key={f.name + idx}
                 type="button"
+                role="tab"
+                aria-selected={idx === activeFileIndex}
                 className={`file-tab ${idx === activeFileIndex ? 'active' : ''}`}
                 onClick={() => setActiveFileIndex(idx)}
                 title={
                   hasTodo
-                    ? `${f.name} — Contains exercise // TODO items`
-                    : `${f.name} (${files.length} files in lesson workspace)`
+                    ? `${f.name} — contains exercise // TODO items`
+                    : `${f.name} (${files.length} files in this workspace)`
                 }
               >
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  <span>{getFileRoleIcon(f.name)}</span>
-                  <span>{f.name}</span>
-                  {hasTodo && (
-                    <span
-                      style={{
-                        fontSize: 9,
-                        fontWeight: 700,
-                        padding: '1px 5px',
-                        borderRadius: 999,
-                        background: 'rgba(245, 158, 11, 0.18)',
-                        color: '#fbbf24',
-                        border: '1px solid rgba(245, 158, 11, 0.35)',
-                        letterSpacing: '0.03em',
-                      }}
-                    >
-                      TODO
-                    </span>
-                  )}
+                <span className="file-tab-icon" aria-hidden="true">
+                  {getFileRoleIcon(f.name)}
                 </span>
+                <span className="file-tab-name">{f.name}</span>
+                {hasTodo && <span className="file-tab-todo" title="Has TODO items" />}
               </button>
             );
           })}
         </div>
 
         <div className="editor-actions">
-          <span
-            className="code-mode-pill"
-            title="All file edits are persisted automatically in localStorage"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}
-          >
-            <span
-              style={{
-                width: 6,
-                height: 6,
-                borderRadius: '50%',
-                background: '#10b981',
-                display: 'inline-block',
-              }}
-            />
-            {modeLabel} {lastSavedAt ? `• Saved ${lastSavedAt}` : '• Auto-Save On'}
-          </span>
+          <div className="tb-group" role="group" aria-label="Toggle panels">
+            <button
+              type="button"
+              className={`tb-icon-btn ${!sidebarCollapsed ? 'is-on' : ''}`}
+              onClick={toggleSidebar}
+              aria-pressed={!sidebarCollapsed}
+              title={sidebarCollapsed ? 'Show Modules panel' : 'Hide Modules panel'}
+            >
+              <PanelIcon variant="left" />
+            </button>
+            {isTrainerMode && (
+              <button
+                type="button"
+                className={`tb-icon-btn ${!trainerCollapsed ? 'is-on' : ''}`}
+                onClick={toggleTrainer}
+                aria-pressed={!trainerCollapsed}
+                title={trainerCollapsed ? 'Show Lesson panel' : 'Hide Lesson panel'}
+              >
+                <PanelIcon variant="middle" />
+              </button>
+            )}
+            <button
+              type="button"
+              className={`tb-icon-btn ${!simulatorCollapsed ? 'is-on' : ''}`}
+              onClick={toggleSimulator}
+              aria-pressed={!simulatorCollapsed}
+              title={simulatorCollapsed ? 'Show HTTP panel' : 'Hide HTTP panel'}
+            >
+              <PanelIcon variant="bottom" />
+            </button>
+          </div>
+
           <button
             type="button"
-            className="btn btn-primary btn-xs"
-            title="Send HTTP Request (Ctrl+Enter)"
-            onClick={onSendRequest}
+            className={`tb-expand ${stepsDone > 0 ? 'is-on' : ''}`}
+            onClick={cycleCodeExpandStep}
+            title={expandTitle}
+            aria-label={expandTitle}
           >
-            ▶ Send Request
+            {allExpanded ? <RestoreIcon /> : <MaximizeIcon />}
+            <span className="tb-steps" aria-hidden="true">
+              {stepFlags.map((_, i) => (
+                <i key={i} className={i < stepsDone ? 'on' : ''} />
+              ))}
+            </span>
           </button>
+
+          <span className="tb-divider" aria-hidden="true" />
+
+          <span
+            className="save-status"
+            title={`${modeLabel} — edits auto-save to localStorage`}
+          >
+            <i aria-hidden="true" />
+            {lastSavedAt ? `Saved ${lastSavedAt}` : 'Auto-save on'}
+          </span>
+
           <button
             type="button"
             className="btn btn-success btn-xs"
-            title="Run Automated Exercise Tests (Ctrl+Shift+Enter)"
+            title="Run automated exercise tests (Ctrl+Shift+Enter)"
             onClick={onVerifyExercise}
           >
-            ✓ Verify Exercise
+            ✓ Verify
           </button>
         </div>
       </div>
