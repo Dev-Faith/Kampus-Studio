@@ -47,6 +47,7 @@ function formatTutorMarkdown(md: string): string {
     let out = escapeHtml(text);
     out = out.replace(/`([^`]+)`/g, '<code>$1</code>');
     out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    out = out.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
     return out;
   };
 
@@ -69,6 +70,24 @@ function formatTutorMarkdown(md: string): string {
       if (match) {
         htmlLines.push(codeBlocks[Number(match[1])] || '');
       }
+      continue;
+    }
+
+    if (/^-{3,}$/.test(line)) {
+      if (inList) {
+        htmlLines.push('</ul>');
+        inList = false;
+      }
+      htmlLines.push('<hr />');
+      continue;
+    }
+
+    if (line.startsWith('#### ')) {
+      if (inList) {
+        htmlLines.push('</ul>');
+        inList = false;
+      }
+      htmlLines.push(`<h4>${formatInline(line.slice(5))}</h4>`);
       continue;
     }
 
@@ -123,6 +142,9 @@ export function KampusTutorBot({ activeSubconcept, currentFiles }: KampusTutorBo
   const [usingEnvKey, setUsingEnvKey] = useState(Boolean(ENV_GEMINI_KEY));
   const [inputText, setInputText] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [isWide, setIsWide] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const mode = useStudioStore((s) => s.mode);
   const trainerTab = useStudioStore((s) => s.trainerTab);
@@ -215,21 +237,7 @@ export function KampusTutorBot({ activeSubconcept, currentFiles }: KampusTutorBo
     ];
   }, [tutorContext]);
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: 'welcome-msg',
-      role: 'assistant',
-      source: 'built-in',
-      contextLabel: 'Kampus Tutor Ready',
-      timestamp: 'Just now',
-      content:
-        '### 👋 Hi! I am your Context-Aware Kampus Backend Tutor.\n\n' +
-        'I can see the **exact lesson** you are studying, your **live TypeScript code in the editor**, your **last HTTP response**, and any **failing exercise test assertions**.\n\n' +
-        '- Click **"🏗️ Why is this lesson built this way?"** to understand the architectural trade-offs.\n' +
-        '- Click **"🔍 Debug my current code & tests"** if your exercise or endpoint isn\'t passing.\n' +
-        '- Or type any specific question about **NestJS**, **Prisma**, **Mongoose**, or **TypeScript** below!',
-    },
-  ]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -286,121 +294,159 @@ export function KampusTutorBot({ activeSubconcept, currentFiles }: KampusTutorBo
   const activeFile = currentFiles[activeFileIndex] || currentFiles[0];
   const passedTestsCount = testResults ? testResults.filter((t) => t.pass).length : 0;
 
+  const aiLive = Boolean(apiKey.trim()) || usingEnvKey;
+  const hasConversation = messages.length > 0;
+
+  // Auto-grow the composer textarea (1 → 5 rows)
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+  }, [inputText, isOpen]);
+
+  // Esc closes the drawer
+  useEffect(() => {
+    if (!isOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen]);
+
+  const handleCopy = async (id: string, text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      window.setTimeout(() => setCopiedId((cur) => (cur === id ? null : cur)), 1600);
+    } catch {
+      // Clipboard unavailable — ignore silently
+    }
+  };
+
   return (
     <>
-      {/* Floating Action Button */}
+      {/* Launcher */}
       <button
         type="button"
         className="tutor-fab"
         onClick={() => setIsOpen((prev) => !prev)}
-        title="Open Context-Aware Kampus AI Tutor & Code Diagnostic Bot"
+        title="Ask Kampus Tutor"
+        aria-label="Open Kampus AI Tutor"
+        aria-expanded={isOpen}
       >
-        <span className="tutor-fab-icon">🤖</span>
+        <span className="tutor-fab-icon">
+          <SparkIcon size={18} />
+        </span>
         <span>Ask Kampus Tutor</span>
-        <span className="tutor-fab-badge">{contextBadgeText}</span>
       </button>
 
-      {/* Slide-Over Tutor Drawer */}
       {isOpen && (
-        <aside className="tutor-drawer" aria-label="Kampus AI Tutor">
-          <div className="tutor-header">
+        <aside className={`tutor-drawer ${isWide ? 'wide' : ''}`} aria-label="Kampus AI Tutor">
+          <header className="tutor-header">
             <div className="tutor-header-left">
-              <div className="tutor-avatar">🤖</div>
-              <div>
-                <div className="tutor-title">Kampus Context-Aware AI Tutor</div>
-                <div className="tutor-subtitle">
-                  Reads your live lesson, editor code, HTTP trace &amp; test assertions
+              <div className="tutor-avatar">
+                <SparkIcon size={16} />
+              </div>
+              <div className="tutor-heading">
+                <div className="tutor-title">Kampus Tutor</div>
+                <div className="tutor-status">
+                  <i className={aiLive ? 'live' : ''} />
+                  {aiLive ? 'Gemini · live AI' : 'Offline · built-in engine'}
                 </div>
               </div>
             </div>
             <div className="tutor-header-actions">
               <button
                 type="button"
-                className="btn btn-sm btn-ghost"
+                className="tutor-icon-btn"
                 onClick={() => setShowApiKeyBar((v) => !v)}
-                title={
-                  usingEnvKey
-                    ? 'Connected to GEMINI_API_KEY from .env'
-                    : 'Configure Gemini, Groq, or OpenAI API Key for live LLM responses'
-                }
-                style={{
-                  borderColor: apiKey.trim() ? 'rgba(16, 185, 129, 0.5)' : undefined,
-                  color: apiKey.trim() ? '#34d399' : undefined,
-                }}
+                aria-pressed={showApiKeyBar}
+                title={usingEnvKey ? 'Using GEMINI_API_KEY from .env' : 'Set API key'}
+                aria-label="API key settings"
               >
-                🔑 {usingEnvKey ? 'Gemini Live (.env)' : apiKey.trim() ? 'Gemini Live' : 'API Key'}
+                🔑
               </button>
               <button
                 type="button"
-                className="btn btn-sm btn-ghost"
-                onClick={() =>
-                  setMessages((prev) => (prev.length > 0 ? [prev[0]] : []))
-                }
-                title="Clear conversation history"
+                className="tutor-icon-btn"
+                onClick={() => setIsWide((v) => !v)}
+                aria-pressed={isWide}
+                title={isWide ? 'Narrow view' : 'Wide view'}
+                aria-label="Toggle wide view"
               >
-                🗑️
+                ⇔
               </button>
               <button
                 type="button"
-                className="btn btn-sm btn-ghost"
+                className="tutor-icon-btn"
+                onClick={() => setMessages([])}
+                disabled={!hasConversation}
+                title="New chat"
+                aria-label="New chat"
+              >
+                ↺
+              </button>
+              <button
+                type="button"
+                className="tutor-icon-btn"
                 onClick={() => setIsOpen(false)}
-                title="Close Tutor"
+                title="Close (Esc)"
+                aria-label="Close tutor"
               >
                 ✕
               </button>
             </div>
-          </div>
+          </header>
 
-          {/* Live Context Status Bar */}
-          <div className="tutor-context-bar">
-            <span className="tutor-ctx-pill active">
-              📍{' '}
-              {mode === 'trainer' && activeSubconcept
-                ? `${activeSubconcept.code} ${activeSubconcept.title}`
-                : contextBadgeText}
+          {/* Compact, single-row context the tutor can see */}
+          <div className="tutor-context-bar" aria-label="Context the tutor can see">
+            <span className="tutor-ctx-pill active" title={activeSubconcept?.title || contextBadgeText}>
+              <span aria-hidden="true">📍</span>
+              <span className="tutor-ctx-text">
+                {mode === 'trainer' && activeSubconcept
+                  ? `${activeSubconcept.code} ${activeSubconcept.title}`
+                  : contextBadgeText}
+              </span>
             </span>
             {mode === 'trainer' && (
               <span className="tutor-ctx-pill">
-                {trainerTab === 'exercise' ? '🏋️ Exercise Mode' : '📖 Concept Mode'}
+                {trainerTab === 'exercise' ? 'Exercise' : 'Concept'}
               </span>
             )}
             {activeFile && (mode === 'trainer' || mode === 'sandbox') && (
-              <span className="tutor-ctx-pill">📄 {activeFile.name}</span>
+              <span className="tutor-ctx-pill" title={activeFile.name}>
+                <span aria-hidden="true">📄</span>
+                <span className="tutor-ctx-text">{activeFile.name}</span>
+              </span>
             )}
             {lastExecutionResult && (mode === 'trainer' || mode === 'sandbox') && (
-              <span className="tutor-ctx-pill">
-                ⚡ HTTP {lastExecutionResult.status}
+              <span
+                className={`tutor-ctx-pill ${lastExecutionResult.status >= 400 ? 'warn' : 'ok'}`}
+              >
+                HTTP {lastExecutionResult.status}
               </span>
             )}
             {testResults && testResults.length > 0 && (
-              <span className="tutor-ctx-pill">
-                🧪 {passedTestsCount}/{testResults.length} Tests
+              <span
+                className={`tutor-ctx-pill ${passedTestsCount === testResults.length ? 'ok' : 'warn'}`}
+              >
+                {passedTestsCount}/{testResults.length} tests
               </span>
             )}
           </div>
 
-          {/* Optional Gemini API Key Bar */}
           {showApiKeyBar && (
             <div className="tutor-apikey-bar">
-              {usingEnvKey && (
-                <span
-                  style={{
-                    fontSize: '11px',
-                    color: '#34d399',
-                    fontWeight: 600,
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  ✅ Loaded GEMINI_API_KEY from .env
-                </span>
-              )}
+              {usingEnvKey && <span className="tutor-apikey-note">✓ Using .env key</span>}
               <input
                 type="password"
                 className="tutor-apikey-input"
                 placeholder={
                   usingEnvKey
-                    ? 'Using GEMINI_API_KEY from .env (paste a key here to override)'
-                    : 'Optional: Paste Gemini (AIza...), Groq (gsk_...), or OpenAI (sk-...) key for live LLM'
+                    ? 'Paste a key to override .env'
+                    : 'Gemini (AIza…), Groq (gsk_…) or OpenAI (sk-…) key'
                 }
                 value={usingEnvKey ? '' : apiKey}
                 onChange={(e) => handleSaveApiKey(e.target.value)}
@@ -408,105 +454,199 @@ export function KampusTutorBot({ activeSubconcept, currentFiles }: KampusTutorBo
               {!usingEnvKey && apiKey.trim() && (
                 <button
                   type="button"
-                  className="btn btn-sm btn-ghost"
+                  className="btn btn-ghost btn-xs"
                   onClick={() => handleSaveApiKey('')}
                 >
-                  {ENV_GEMINI_KEY ? 'Use .env Key' : 'Clear'}
+                  {ENV_GEMINI_KEY ? 'Use .env' : 'Clear'}
                 </button>
               )}
             </div>
           )}
 
-          {/* Context-Aware Quick Prompt Chips */}
-          <div className="tutor-chips">
-            {suggestedChips.map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                className="tutor-chip"
-                onClick={() => void handleAskQuestion(chip)}
-              >
-                {chip}
-              </button>
-            ))}
-          </div>
-
-          {/* Chat Message Stream */}
           <div className="tutor-messages">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`tutor-msg ${msg.role}`}>
-                <div className="tutor-msg-meta">
-                  <span>
-                    {msg.role === 'assistant'
-                      ? msg.source === 'gemini-api'
-                        ? '✨ Kampus Tutor (Gemini 3 Flash • Live AI)'
-                        : '🤖 Kampus Tutor (Context Engine)'
-                      : '👤 You'}
-                  </span>
-                  <span>
-                    {msg.contextLabel ? `${msg.contextLabel} · ` : ''}
-                    {msg.timestamp}
-                  </span>
+            {!hasConversation && (
+              <div className="tutor-empty">
+                <div className="tutor-empty-icon">
+                  <SparkIcon size={22} />
                 </div>
-                {msg.role === 'assistant' ? (
-                  <div
-                    className="tutor-msg-body"
-                    dangerouslySetInnerHTML={{
-                      __html: formatTutorMarkdown(msg.content),
-                    }}
-                  />
-                ) : (
-                  <div className="tutor-msg-body">
-                    <p>{msg.content}</p>
-                  </div>
-                )}
+                <h2>How can I help with this lesson?</h2>
+                <p>
+                  I can see your lesson, open files, last HTTP response and test results — ask about
+                  anything on screen.
+                </p>
+                <div className="tutor-suggest-grid">
+                  {suggestedChips.slice(0, 6).map((chip) => {
+                    const { icon, text } = splitChip(chip);
+                    return (
+                      <button
+                        key={chip}
+                        type="button"
+                        className="tutor-suggest"
+                        onClick={() => void handleAskQuestion(chip)}
+                      >
+                        <span className="tutor-suggest-icon" aria-hidden="true">
+                          {icon}
+                        </span>
+                        <span className="tutor-suggest-text">{text}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            ))}
+            )}
+
+            {messages.map((msg) =>
+              msg.role === 'user' ? (
+                <div key={msg.id} className="tutor-msg user" title={msg.timestamp}>
+                  <div className="tutor-msg-bubble">{msg.content}</div>
+                </div>
+              ) : (
+                <div key={msg.id} className="tutor-msg assistant">
+                  <div className="tutor-msg-avatar" aria-hidden="true">
+                    <SparkIcon size={13} />
+                  </div>
+                  <div className="tutor-msg-main">
+                    <div className="tutor-msg-meta">
+                      <span className="tutor-msg-author">Kampus Tutor</span>
+                      <span
+                        className={`tutor-source ${msg.source === 'gemini-api' ? 'ai' : 'local'}`}
+                        title={
+                          msg.source === 'gemini-api'
+                            ? 'Answered by Gemini with your lesson context'
+                            : 'Answered offline by the built-in context engine'
+                        }
+                      >
+                        {msg.source === 'gemini-api' ? 'Gemini' : 'Built-in'}
+                      </span>
+                      <span className="tutor-msg-time">
+                        {msg.contextLabel ? `${msg.contextLabel} · ` : ''}
+                        {msg.timestamp}
+                      </span>
+                    </div>
+                    <div
+                      className="tutor-msg-body"
+                      dangerouslySetInnerHTML={{ __html: formatTutorMarkdown(msg.content) }}
+                    />
+                    <div className="tutor-msg-actions">
+                      <button
+                        type="button"
+                        className="tutor-action-btn"
+                        onClick={() => void handleCopy(msg.id, msg.content)}
+                      >
+                        {copiedId === msg.id ? '✓ Copied' : '⧉ Copy'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ),
+            )}
+
             {isThinking && (
               <div className="tutor-msg assistant">
-                <div className="tutor-msg-meta">
-                  <span>🤖 Kampus Tutor</span>
-                  <span>Analyzing context...</span>
+                <div className="tutor-msg-avatar" aria-hidden="true">
+                  <SparkIcon size={13} />
                 </div>
-                <div className="tutor-msg-body">
-                  <p>Inspecting your active lesson, editor code, and HTTP execution trace...</p>
+                <div className="tutor-typing" role="status" aria-live="polite">
+                  <span className="tutor-dots" aria-hidden="true">
+                    <i />
+                    <i />
+                    <i />
+                  </span>
+                  Reading your files…
                 </div>
               </div>
             )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Chat Input Bar */}
+          {hasConversation && (
+            <div className="tutor-quick-row" aria-label="Suggested questions">
+              {suggestedChips.slice(0, 6).map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  className="tutor-chip"
+                  title={chip}
+                  onClick={() => void handleAskQuestion(chip)}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+          )}
+
           <form
-            className="tutor-input-bar"
+            className="tutor-composer"
             onSubmit={(e) => {
               e.preventDefault();
               void handleAskQuestion(inputText);
             }}
           >
-            <textarea
-              className="tutor-input"
-              rows={2}
-              placeholder="Ask anything about this lesson, why a decision was made, or how to fix your code... (Enter to send)"
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleAskQuestion(inputText);
-                }
-              }}
-            />
-            <button
-              type="submit"
-              className="tutor-send-btn"
-              disabled={!inputText.trim() || isThinking}
-            >
-              Ask →
-            </button>
+            <div className="tutor-composer-box">
+              <textarea
+                ref={textareaRef}
+                className="tutor-input"
+                rows={1}
+                placeholder="Ask about this lesson or your code…"
+                aria-label="Ask the Kampus Tutor"
+                value={inputText}
+                onChange={(e) => setInputText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void handleAskQuestion(inputText);
+                  }
+                }}
+              />
+              <button
+                type="submit"
+                className="tutor-send"
+                disabled={!inputText.trim() || isThinking}
+                aria-label="Send question"
+                title="Send (Enter)"
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                  <path
+                    d="M8 13V3M8 3L3.5 7.5M8 3l4.5 4.5"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="tutor-hint">
+              <kbd>Enter</kbd> to send · <kbd>Shift</kbd> + <kbd>Enter</kbd> for a new line
+            </div>
           </form>
         </aside>
       )}
     </>
   );
+}
+
+function SparkIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9L12 2z" />
+      <path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9L19 15z" opacity="0.85" />
+    </svg>
+  );
+}
+
+/** Splits a suggestion like "🗂️ How do…" into an emoji icon and plain text. */
+function splitChip(chip: string): { icon: string; text: string } {
+  const chars = Array.from(chip);
+  const first = chars[0] || '';
+  if (first && !/[A-Za-z0-9"'(@$`]/.test(first)) {
+    let icon = first;
+    let idx = 1;
+    if (chars[1] === '\uFE0F') {
+      icon += '\uFE0F';
+      idx = 2;
+    }
+    return { icon, text: chars.slice(idx).join('').trim() };
+  }
+  return { icon: '💬', text: chip };
 }
