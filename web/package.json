@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
-    "prebuild": "node ../scripts/sync-web-public.js",
+    "prebuild": "node -e \"try{require('../scripts/sync-web-public.js')}catch(e){}\"",
     "build": "next build",
     "start": "next start -p 3001"
   },

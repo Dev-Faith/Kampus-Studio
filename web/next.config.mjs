@@ -50,11 +50,11 @@ function loadGeminiKeyFromDotEnv() {
 }
 
 const resolvedGeminiKey = loadGeminiKeyFromDotEnv();
+const isVercel = Boolean(process.env.VERCEL);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
-  distDir: 'out',
+  ...(isVercel ? {} : { output: 'export', distDir: 'out' }),
   env: {
     NEXT_PUBLIC_GEMINI_API_KEY: resolvedGeminiKey,
   },
