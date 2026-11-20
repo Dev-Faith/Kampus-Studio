@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Check, ChevronDown, ChevronRight, FileCode2, Plus, Search, X } from 'lucide-react';
 import { useStudioStore } from '../store/useStudioStore';
 import type { CurriculumModule, SandboxTemplate, Subconcept } from '../types/studio';
 
@@ -47,29 +49,27 @@ export function CurriculumSidebar({
         <div id="sidebar-trainer-view">
           <div className="sidebar-header">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span className="sidebar-label" style={{ marginBottom: 0 }}>
-                KAMPUS CURRICULUM
-              </span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <button
-                  type="button"
-                  className="icon-close-btn"
-                  onClick={toggleSidebar}
-                  title="Close Modules panel"
-                  aria-label="Close Modules panel"
-                >
-                  ✕
-                </button>
-              </div>
+              <span className="sidebar-label">Kampus Curriculum</span>
+              <button
+                type="button"
+                className="icon-close-btn"
+                onClick={toggleSidebar}
+                title="Close Modules panel"
+                aria-label="Close Modules panel"
+              >
+                <X size={14} strokeWidth={2} />
+              </button>
             </div>
             <div className="search-input-wrap">
-              <span className="search-icon">⌕</span>
+              <span className="search-icon">
+                <Search size={13} strokeWidth={2} />
+              </span>
               <input
                 type="search"
                 value={conceptSearch}
                 onChange={(e) => setConceptSearch(e.target.value)}
                 className="search-input with-icon"
-                placeholder="Search lessons (DI, JWT, Prisma, Mongoose, Testing...)"
+                placeholder="Filter lessons (DI, JWT, Prisma...)"
               />
             </div>
           </div>
@@ -111,37 +111,48 @@ export function CurriculumSidebar({
                     >
                       {doneInMod}/{allModSubs.length}
                     </span>
-                    <span className="mod-chevron">{isCollapsed ? '▸' : '▾'}</span>
+                    <span className="mod-chevron">
+                      {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
+                    </span>
                   </button>
 
-                  {!isCollapsed && (
-                    <div className="mod-sublist">
-                      {matchingSubs.map((sub) => {
-                        const done = completedIds.includes(sub.id);
-                        const isActive = sub.id === currentSubconceptId;
-                        return (
-                          <button
-                            key={sub.id}
-                            type="button"
-                            className={`subconcept-item ${isActive ? 'active' : ''}`}
-                            onClick={() => onSelectSubconcept(sub)}
-                          >
-                            <div className="subconcept-left">
-                              <span className="sub-code">{sub.code}</span>
-                              <span className="sub-title-text">{sub.title}</span>
-                            </div>
-                            {done ? (
-                              <span className="sub-check" title="Exercise Completed">
-                                ✓
-                              </span>
-                            ) : isActive ? (
-                              <span className="sub-active-dot" />
-                            ) : null}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
+                  <AnimatePresence initial={false}>
+                    {!isCollapsed && (
+                      <motion.div
+                        className="mod-sublist"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.16, ease: 'easeOut' }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        {matchingSubs.map((sub) => {
+                          const done = completedIds.includes(sub.id);
+                          const isActive = sub.id === currentSubconceptId;
+                          return (
+                            <button
+                              key={sub.id}
+                              type="button"
+                              className={`subconcept-item ${isActive ? 'active' : ''}`}
+                              onClick={() => onSelectSubconcept(sub)}
+                            >
+                              <div className="subconcept-left">
+                                <span className="sub-code">{sub.code}</span>
+                                <span className="sub-title-text">{sub.title}</span>
+                              </div>
+                              {done ? (
+                                <span className="sub-check" title="Exercise Completed">
+                                  <Check size={13} strokeWidth={2.5} />
+                                </span>
+                              ) : isActive ? (
+                                <span className="sub-active-dot" />
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}
@@ -151,9 +162,7 @@ export function CurriculumSidebar({
         <div id="sidebar-sandbox-view">
           <div className="sidebar-header">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="sidebar-label" style={{ marginBottom: 0 }}>
-                KAMPUS SANDBOX BLUEPRINTS
-              </span>
+              <span className="sidebar-label">Sandbox Blueprints</span>
               <button
                 type="button"
                 className="icon-close-btn"
@@ -161,11 +170,11 @@ export function CurriculumSidebar({
                 title="Close Modules panel"
                 aria-label="Close Modules panel"
               >
-                ✕
+                <X size={14} strokeWidth={2} />
               </button>
             </div>
             <p className="sidebar-hint">
-              Load a multi-file Kampus PropTech architecture. All edits persist in localStorage.
+              Load a multi-file Kampus PropTech architecture. Edits persist automatically.
             </p>
           </div>
           <div className="template-list">
@@ -181,17 +190,16 @@ export function CurriculumSidebar({
             ))}
           </div>
 
-          <div className="sidebar-header" style={{ marginTop: 16 }}>
+          <div className="sidebar-header" style={{ marginTop: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="sidebar-label" style={{ marginBottom: 0 }}>
-                WORKSPACE FILES
-              </span>
+              <span className="sidebar-label">Workspace Files</span>
               <button
                 type="button"
                 className="btn btn-xs btn-secondary"
                 onClick={() => setAddingFile((v) => !v)}
               >
-                + New File
+                <Plus size={12} strokeWidth={2.2} />
+                New File
               </button>
             </div>
             {addingFile && (
@@ -202,7 +210,6 @@ export function CurriculumSidebar({
                   onChange={(e) => setNewFileName(e.target.value)}
                   placeholder="custom.guard.ts"
                   className="search-input"
-                  style={{ marginTop: 0 }}
                 />
                 <button
                   type="button"
@@ -227,7 +234,10 @@ export function CurriculumSidebar({
                 className={`sidebar-file-item ${idx === activeFileIndex ? 'active' : ''}`}
                 onClick={() => setActiveFileIndex(idx)}
               >
-                <span>📄 {f.name}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+                  <FileCode2 size={13} style={{ color: 'var(--text-muted)' }} />
+                  {f.name}
+                </span>
               </div>
             ))}
           </div>

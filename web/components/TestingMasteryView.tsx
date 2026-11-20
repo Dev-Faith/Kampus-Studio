@@ -108,7 +108,7 @@ export function TestingMasteryView({
     <section className="syntax-view">
       <aside className="syntax-sidebar">
         <div className="sidebar-header">
-          <span className="sidebar-label">✅ UNIT &amp; E2E TESTING MASTERY</span>
+          <span className="sidebar-label">Unit &amp; E2E Testing Mastery</span>
           <input
             type="search"
             value={search}
@@ -182,7 +182,7 @@ export function TestingMasteryView({
               <span className="badge badge-accent">
                 @NESTJS/TESTING + JEST SPIES + SUPERTEST PIPELINE
               </span>
-              <h2>✅ Mastering Unit &amp; Integration Testing on Kampus PropTech</h2>
+              <h2>Mastering Unit &amp; Integration Testing on Kampus PropTech</h2>
               <p className="muted-text">
                 Learn how to test every layer of the <strong>Kampus Student Housing &amp; Escrow</strong>{' '}
                 backend—from millisecond isolated service unit tests with{' '}

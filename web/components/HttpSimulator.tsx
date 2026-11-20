@@ -1,6 +1,26 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  AlertTriangle,
+  ArrowDownToLine,
+  ArrowUpToLine,
+  Check,
+  CheckCircle2,
+  Copy,
+  Database,
+  FoldVertical,
+  GitBranch,
+  Play,
+  SlidersHorizontal,
+  Sparkles,
+  Terminal,
+  TestTube2,
+  X,
+  XCircle,
+  Zap,
+} from 'lucide-react';
 import { useStudioStore } from '../store/useStudioStore';
 import { highlightCodeHtml } from '../utils/highlightCode';
 import type { InspectorTab, RequestPreset } from '../types/studio';
@@ -19,7 +39,6 @@ export function healJsonString(raw: string): { valid: boolean; healed: string; e
     const parsed = JSON.parse(trimmed);
     return { valid: true, healed: JSON.stringify(parsed, null, 2) };
   } catch (err: any) {
-    // Attempt smart auto-heal (missing closing braces, trailing commas, unquoted keys)
     let candidate = trimmed.replace(/,\s*([}\]])/g, '$1');
     const openBraces = (candidate.match(/\{/g) || []).length;
     const closeBraces = (candidate.match(/\}/g) || []).length;
@@ -71,6 +90,7 @@ export function HttpSimulator({
   const setPayloadHeight = useStudioStore((s) => s.setPayloadHeight);
   const toggleSimulator = useStudioStore((s) => s.toggleSimulator);
   const stateVersion = useStudioStore((s) => s.stateVersion);
+  const [copiedJson, setCopiedJson] = useState(false);
 
   const bodyStatus = useMemo(() => healJsonString(reqBody), [reqBody]);
   const headersStatus = useMemo(() => healJsonString(reqHeaders), [reqHeaders]);
@@ -112,6 +132,50 @@ export function HttpSimulator({
 
   const passedTestsCount = testResults.filter((r) => r.pass).length;
 
+  const tabs: Array<{ id: InspectorTab; icon: React.ReactNode; label: string; badge?: React.ReactNode }> = [
+    {
+      id: 'response',
+      icon: <Terminal size={13} strokeWidth={2} />,
+      label: 'Response',
+      badge: (
+        <>
+          <motion.span
+            key={res ? `${res.status}-${stateVersion}` : 'idle'}
+            initial={{ scale: 0.88, opacity: 0.6 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+            className={`status-pill ${statusClass}`}
+          >
+            {res ? `${res.status} ${res.statusText || ''}`.trim() : 'Ready'}
+          </motion.span>
+          {res && <span className="muted-text tabular">{res.durationMs}ms</span>}
+        </>
+      ),
+    },
+    {
+      id: 'pipeline',
+      icon: <GitBranch size={13} strokeWidth={2} />,
+      label: 'Pipeline',
+      badge: <span className="badge-xs">{res?.pipeline?.length || 0}</span>,
+    },
+    {
+      id: 'tests',
+      icon: <TestTube2 size={13} strokeWidth={2} />,
+      label: 'Tests',
+      badge:
+        testResults.length > 0 ? (
+          <span className="badge-xs">
+            {passedTestsCount}/{testResults.length}
+          </span>
+        ) : null,
+    },
+    {
+      id: 'state',
+      icon: <Database size={13} strokeWidth={2} />,
+      label: 'State',
+    },
+  ];
+
   return (
     <div className="simulator-section" style={{ height: `${100 - editorHeightPercent}%` }}>
       <div className="request-bar">
@@ -136,7 +200,8 @@ export function HttpSimulator({
             placeholder="/route/path?query=1"
           />
           <button type="button" className="btn btn-primary" onClick={onSendRequest}>
-            ▶ Send Request
+            <Play size={12} fill="currentColor" strokeWidth={2} />
+            Send Request
           </button>
           <button
             type="button"
@@ -144,53 +209,62 @@ export function HttpSimulator({
             title="Fire 5 rapid requests in a row to test Rate Limiting (429) and Caching (HIT/MISS)"
             onClick={onBurstRequest}
           >
-            ⚡ Burst 5x
+            <Zap size={13} strokeWidth={2} />
+            Burst 5x
           </button>
         </div>
 
         <div className="presets-row">
           <div className="presets-group">
-            <span className="row-label">PRESETS:</span>
+            <span className="row-label">PRESETS</span>
             <div className="preset-chips">
-              {presets.map((p, idx) => (
-                <button
-                  key={p.label + idx}
-                  type="button"
-                  className="preset-chip"
-                  onClick={() => onApplyPresetAndSend(p)}
-                >
-                  <span className={`preset-method-tag method-${(p.method || 'GET').toLowerCase()}`}>
-                    {p.method || 'GET'}
-                  </span>
-                  <span>{p.label.replace(/^(GET|POST|PATCH|PUT|DELETE)\s+/i, '')}</span>
-                </button>
-              ))}
+              {presets.map((p, idx) => {
+                const methodStr = (p.method || 'GET').toUpperCase();
+                const cleanedLabel = p.label
+                  .replace(/^(GET|POST|PATCH|PUT|DELETE)\s+/i, '')
+                  .replace(new RegExp(`:\\s*${methodStr}\\s+`, 'i'), ': ');
+                return (
+                  <button
+                    key={p.label + idx}
+                    type="button"
+                    className="preset-chip"
+                    onClick={() => onApplyPresetAndSend(p)}
+                  >
+                    <span className={`preset-method-tag method-${methodStr.toLowerCase()}`}>
+                      {methodStr}
+                    </span>
+                    <span>{cleanedLabel}</span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div className="persona-group">
-            <span className="row-label">KAMPUS PERSONA:</span>
+            <span className="row-label">PERSONA</span>
             <select
               className="persona-select"
               title="Automatically sets Authorization or x-api-key header"
               value={authPersona}
               onChange={(e) => setAuthPersona(e.target.value)}
             >
-              <option value="none">👤 Guest Student (No Auth Header)</option>
-              <option value="user">🎓 Adaobi (Student — role: student, tier: basic)</option>
-              <option value="moderator">🔑 Chidi (Landlord — role: landlord, tier: verified)</option>
-              <option value="admin">
-                🛡️ Grace (Housing Officer — role: admin, tier: campus-admin)
-              </option>
-              <option value="apikey">🏦 Partner Key (x-api-key: kampus-partner-key)</option>
-              <option value="expired">⌛ Expired Student JWT</option>
+              <option value="none">Guest Student (No Auth Header)</option>
+              <option value="user">Adaobi — Student (tier: basic)</option>
+              <option value="moderator">Chidi — Landlord (tier: verified)</option>
+              <option value="admin">Grace — Housing Officer (admin)</option>
+              <option value="apikey">Partner Key (x-api-key)</option>
+              <option value="expired">Expired Student JWT</option>
             </select>
             <button
               type="button"
               className="btn btn-ghost btn-xs"
               onClick={() => setPayloadDrawerOpen(!payloadDrawerOpen)}
             >
-              Headers &amp; Body {!bodyStatus.valid ? '⚠️' : ''} ▾
+              <SlidersHorizontal size={12} />
+              Headers &amp; Body
+              {!bodyStatus.valid && (
+                <AlertTriangle size={12} style={{ color: 'var(--amber-fg)' }} />
+              )}
             </button>
           </div>
         </div>
@@ -198,24 +272,18 @@ export function HttpSimulator({
         {payloadDrawerOpen && (
           <div className="req-payload-drawer">
             <div className="payload-col">
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label className="payload-label">Request Headers (JSON)</label>
                 {headersStatus.valid ? (
-                  <span style={{ fontSize: 10.5, color: '#34d399' }}>✓ Valid JSON</span>
+                  <span style={{ fontSize: 10.5, color: 'var(--green-fg)' }}>Valid JSON</span>
                 ) : (
                   <button
                     type="button"
                     className="btn btn-xs btn-secondary"
-                    style={{ color: '#fbbf24' }}
+                    style={{ color: 'var(--amber-fg)' }}
                     onClick={() => setReqHeaders(headersStatus.healed)}
                   >
-                    ✨ Auto-Fix JSON
+                    <Sparkles size={11} /> Auto-Fix JSON
                   </button>
                 )}
               </div>
@@ -229,28 +297,22 @@ export function HttpSimulator({
             </div>
 
             <div className="payload-col">
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <label className="payload-label">Request Body (JSON)</label>
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                   {!reqBody.trim() ? (
                     <span style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>Empty Body</span>
                   ) : bodyStatus.valid ? (
-                    <span style={{ fontSize: 10.5, color: '#34d399' }}>✓ Valid JSON</span>
+                    <span style={{ fontSize: 10.5, color: 'var(--green-fg)' }}>Valid JSON</span>
                   ) : (
                     <button
                       type="button"
                       className="btn btn-xs btn-secondary"
-                      style={{ color: '#fbbf24' }}
+                      style={{ color: 'var(--amber-fg)' }}
                       onClick={() => setReqBody(bodyStatus.healed)}
                       title="Automatically adds missing closing '}' or fixes trailing commas"
                     >
-                      ⚠️ Missing &apos;&#125;&apos; — Click to Fix JSON
+                      <AlertTriangle size={11} /> Fix JSON
                     </button>
                   )}
                 </div>
@@ -264,7 +326,7 @@ export function HttpSimulator({
                 style={{
                   height: payloadHeight,
                   minHeight: 44,
-                  borderColor: !bodyStatus.valid ? 'rgba(245, 158, 11, 0.7)' : undefined,
+                  borderColor: !bodyStatus.valid ? 'var(--amber-border)' : undefined,
                 }}
               />
             </div>
@@ -275,7 +337,7 @@ export function HttpSimulator({
       {/* Draggable Splitter directly above the Inspector Tabs */}
       <div
         className="resizer-h"
-        title="Drag up/down to adjust Inspector Tabs height vs Request Payload / Editor (double-click to reset)"
+        title="Drag up/down to adjust Inspector height (double-click to reset)"
         onDoubleClick={() => {
           setPayloadHeight(68);
           setEditorHeightPercent(50);
@@ -312,48 +374,31 @@ export function HttpSimulator({
       />
 
       <div className="inspector-dock">
-        <div className="inspector-tabs">
-          <button
-            type="button"
-            className={`inspector-tab ${inspectorTab === 'response' ? 'active' : ''}`}
-            onClick={() => setInspectorTab('response')}
-          >
-            📦 Response
-            <span className={`status-pill ${statusClass}`}>
-              {res ? `${res.status} ${res.statusText || ''}`.trim() : 'Ready'}
-            </span>
-            {res && <span className="muted-text">{res.durationMs}ms</span>}
-          </button>
-
-          <button
-            type="button"
-            className={`inspector-tab ${inspectorTab === 'pipeline' ? 'active' : ''}`}
-            onClick={() => setInspectorTab('pipeline')}
-          >
-            🧅 Pipeline
-            <span className="badge badge-xs">{res?.pipeline?.length || 0}</span>
-          </button>
-
-          <button
-            type="button"
-            className={`inspector-tab ${inspectorTab === 'tests' ? 'active' : ''}`}
-            onClick={() => setInspectorTab('tests')}
-          >
-            🧪 Tests
-            {testResults.length > 0 && (
-              <span className="badge badge-xs">
-                {passedTestsCount}/{testResults.length}
-              </span>
-            )}
-          </button>
-
-          <button
-            type="button"
-            className={`inspector-tab ${inspectorTab === 'state' ? 'active' : ''}`}
-            onClick={() => setInspectorTab('state')}
-          >
-            🗄️ State
-          </button>
+        <div className="inspector-tabs" role="tablist">
+          {tabs.map((tab) => {
+            const isActive = inspectorTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                className={`inspector-tab ${isActive ? 'active' : ''}`}
+                onClick={() => setInspectorTab(tab.id)}
+              >
+                {tab.icon}
+                <span>{tab.label}</span>
+                {tab.badge}
+                {isActive && (
+                  <motion.span
+                    layoutId="inspector-tab-indicator"
+                    className="inspector-tab-underline"
+                    transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                  />
+                )}
+              </button>
+            );
+          })}
 
           <div className="inspector-tabs-actions">
             <button
@@ -366,7 +411,7 @@ export function HttpSimulator({
                 setPayloadHeight(52);
               }}
             >
-              ⤒
+              <ArrowUpToLine size={13} strokeWidth={2} />
             </button>
             <button
               type="button"
@@ -378,7 +423,7 @@ export function HttpSimulator({
                 setPayloadHeight(68);
               }}
             >
-              ⇕
+              <FoldVertical size={13} strokeWidth={2} />
             </button>
             <button
               type="button"
@@ -387,7 +432,7 @@ export function HttpSimulator({
               aria-label="Maximize editor"
               onClick={() => setEditorHeightPercent(72)}
             >
-              ⤓
+              <ArrowDownToLine size={13} strokeWidth={2} />
             </button>
             <span className="tb-divider" aria-hidden="true" />
             <button
@@ -397,25 +442,48 @@ export function HttpSimulator({
               aria-label="Close HTTP panel"
               onClick={toggleSimulator}
             >
-              ✕
+              <X size={13} strokeWidth={2} />
             </button>
           </div>
         </div>
 
         {inspectorTab === 'response' && (
           <div className="inspector-panel">
-            <div className="resp-headers-bar">
-              {Object.entries(res?.headers || {}).map(([k, v]) => (
-                <span key={k} className="header-chip">
-                  <strong>{k}:</strong> {String(v)}
-                </span>
-              ))}
+            <div
+              className="resp-headers-bar"
+              style={{ justifyContent: 'space-between', alignItems: 'center' }}
+            >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {Object.entries(res?.headers || {}).map(([k, v]) => (
+                  <span key={k} className="header-chip">
+                    <strong>{k}:</strong> {String(v)}
+                  </span>
+                ))}
+              </div>
+              {res?.body !== undefined && res?.body !== null && (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-xs"
+                  onClick={() => {
+                    navigator.clipboard
+                      ?.writeText(JSON.stringify(res.body, null, 2))
+                      .then(() => {
+                        setCopiedJson(true);
+                        setTimeout(() => setCopiedJson(false), 1500);
+                      })
+                      .catch(() => {});
+                  }}
+                >
+                  {copiedJson ? <Check size={11} /> : <Copy size={11} />}
+                  {copiedJson ? 'Copied' : 'Copy JSON'}
+                </button>
+              )}
             </div>
             <pre
               className="code-output"
               dangerouslySetInnerHTML={{
                 __html: !res
-                  ? '<span class="hl-comment">// Click "▶ Send Request" or any Preset above to execute your NestJS code and inspect the response.</span>'
+                  ? '<span class="hl-comment">// Click "Send Request" or any Preset above to execute your NestJS code and inspect the response.</span>'
                   : res.body === null || res.body === undefined
                     ? '<span class="hl-comment">// 204 No Content (Empty Response Body)</span>'
                     : highlightCodeHtml(JSON.stringify(res.body, null, 2), 'json'),
@@ -428,7 +496,13 @@ export function HttpSimulator({
           <div className="inspector-panel">
             <div className="pipeline-steps-list">
               {(res?.pipeline || []).map((step, idx) => (
-                <div key={idx} className={`pipe-step status-${step.status}`}>
+                <motion.div
+                  key={`${stateVersion}-${idx}-${step.name}`}
+                  className={`pipe-step status-${step.status}`}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: idx * 0.04, duration: 0.18, ease: 'easeOut' }}
+                >
                   <div className="pipe-step-left">
                     <span className="pipe-stage-tag">
                       {idx + 1}. {step.stage}
@@ -438,8 +512,8 @@ export function HttpSimulator({
                       <div className="pipe-step-detail">{step.detail || ''}</div>
                     </div>
                   </div>
-                  <span className="badge badge-outline">{step.durationMs}ms</span>
-                </div>
+                  <span className="badge badge-outline tabular">{step.durationMs}ms</span>
+                </motion.div>
               ))}
             </div>
           </div>
@@ -450,32 +524,44 @@ export function HttpSimulator({
             <div className="test-results-list">
               {testResults.length === 0 ? (
                 <p className="muted-text">
-                  Click &quot;✓ Verify Exercise&quot; to run the automated test suite against your
-                  solution.
+                  Click &quot;Verify&quot; to run the automated test suite against your solution.
                 </p>
               ) : (
                 testResults.map((r, idx) => (
-                  <div key={idx} className={`test-row ${r.pass ? 'pass' : 'fail'}`}>
+                  <motion.div
+                    key={`${stateVersion}-test-${idx}`}
+                    className={`test-row ${r.pass ? 'pass' : 'fail'}`}
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.04, duration: 0.16 }}
+                  >
                     <div
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
+                        alignItems: 'center',
                         fontWeight: 600,
+                        fontSize: 12,
                       }}
                     >
-                      <span>
-                        {r.pass ? '✓ PASS' : '✗ FAIL'} — {r.name}
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        {r.pass ? (
+                          <CheckCircle2 size={14} style={{ color: 'var(--green-fg)' }} />
+                        ) : (
+                          <XCircle size={14} style={{ color: 'var(--red-fg)' }} />
+                        )}
+                        {r.name}
                       </span>
-                      <span className="badge badge-outline">
+                      <span className="badge badge-outline tabular">
                         HTTP {r.lastRes?.status ?? '-'}
                       </span>
                     </div>
                     {!r.pass && r.reason && (
-                      <div className="muted-text" style={{ color: '#fca5a5' }}>
+                      <div className="muted-text" style={{ color: 'var(--red-fg)' }}>
                         {r.reason}
                       </div>
                     )}
-                  </div>
+                  </motion.div>
                 ))
               )}
             </div>
@@ -487,7 +573,7 @@ export function HttpSimulator({
             <div className="state-grid">
               <div className="state-card">
                 <h4>
-                  Kampus DB: Users ({sandboxState.users.length}) &amp; Escrow Wallets
+                  Users ({sandboxState.users.length}) &amp; Escrow Wallets
                 </h4>
                 <pre>
                   {JSON.stringify(
@@ -502,7 +588,7 @@ export function HttpSimulator({
               </div>
               <div className="state-card">
                 <h4>
-                  Kampus DB: Hostel Listings ({sandboxState.listings.length}) &amp; Rent Bookings (
+                  Hostel Listings ({sandboxState.listings.length}) &amp; Rent Bookings (
                   {sandboxState.bookings.length})
                 </h4>
                 <pre>
@@ -518,8 +604,8 @@ export function HttpSimulator({
               </div>
               <div className="state-card">
                 <h4>
-                  CACHE_MANAGER ({sandboxState.cacheEntries.length} keys) &amp; Throttler (
-                  {sandboxState.throttleEntries.length} keys)
+                  CACHE_MANAGER ({sandboxState.cacheEntries.length}) &amp; Throttler (
+                  {sandboxState.throttleEntries.length})
                 </h4>
                 <pre>
                   {JSON.stringify(
@@ -534,7 +620,7 @@ export function HttpSimulator({
               </div>
               <div className="state-card">
                 <h4>
-                  Domain Events ({sandboxState.eventsLog.length}) &amp; Safety Audit Logs (
+                  Domain Events ({sandboxState.eventsLog.length}) &amp; Audit Logs (
                   {sandboxState.auditLogs.length})
                 </h4>
                 <pre>

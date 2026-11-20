@@ -15,6 +15,7 @@ import type {
 
 export interface StudioState {
   // Navigation & Layout State (Persisted)
+  theme: 'dark' | 'light';
   mode: AppMode;
   trainerTab: TrainerTab;
   inspectorTab: InspectorTab;
@@ -50,8 +51,11 @@ export interface StudioState {
   syntaxSearch: string;
   activeDecompilerId: string;
   stateVersion: number;
+  commandPaletteOpen: boolean;
 
   // Actions
+  toggleTheme: () => void;
+  setCommandPaletteOpen: (open: boolean) => void;
   setMode: (mode: AppMode) => void;
   setTrainerTab: (tab: TrainerTab, sub?: Subconcept) => void;
   setInspectorTab: (tab: InspectorTab) => void;
@@ -61,7 +65,7 @@ export interface StudioState {
   toggleSidebar: () => void;
   toggleTrainer: () => void;
   toggleSimulator: () => void;
-  cycleCodeExpandStep: () => void;
+  toggleFocusMode: () => void;
   setSidebarWidth: (width: number) => void;
   setTrainerPaneWidth: (width: number) => void;
   setEditorHeightPercent: (pct: number) => void;
@@ -108,6 +112,7 @@ export function buildExercisePresets(sub?: Subconcept): RequestPreset[] {
 export const useStudioStore = create<StudioState>()(
   persist(
     (set, get) => ({
+      theme: 'dark',
       mode: 'trainer',
       trainerTab: 'learn',
       inspectorTab: 'response',
@@ -140,6 +145,11 @@ export const useStudioStore = create<StudioState>()(
       syntaxSearch: '',
       activeDecompilerId: 'dec-controller',
       stateVersion: 0,
+      commandPaletteOpen: false,
+
+      toggleTheme: () =>
+        set((s) => ({ theme: s.theme === 'dark' ? 'light' : 'dark' })),
+      setCommandPaletteOpen: (commandPaletteOpen: boolean) => set({ commandPaletteOpen }),
 
       getBufferKey: () => {
         const s = get();
@@ -276,34 +286,16 @@ export const useStudioStore = create<StudioState>()(
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       toggleTrainer: () => set((s) => ({ trainerCollapsed: !s.trainerCollapsed })),
       toggleSimulator: () => set((s) => ({ simulatorCollapsed: !s.simulatorCollapsed })),
-      cycleCodeExpandStep: () =>
+      toggleFocusMode: () =>
         set((s) => {
           const isTrainerMode = s.mode === 'trainer';
-          // Step 1: Middle panel (TrainerPane) disappears first
-          if (isTrainerMode && !s.trainerCollapsed) {
-            return { trainerCollapsed: true };
-          }
-          // Step 2: Left panel (CurriculumSidebar) disappears second
-          if (!s.sidebarCollapsed) {
-            return {
-              trainerCollapsed: isTrainerMode ? true : s.trainerCollapsed,
-              sidebarCollapsed: true,
-            };
-          }
-          // Step 3: Bottom panel (HttpSimulator) disappears third
-          if (!s.simulatorCollapsed) {
-            return {
-              trainerCollapsed: isTrainerMode ? true : s.trainerCollapsed,
-              sidebarCollapsed: true,
-              simulatorCollapsed: true,
-            };
-          }
-          // Reset: Restore all 3 panels
-          return {
-            trainerCollapsed: false,
-            sidebarCollapsed: false,
-            simulatorCollapsed: false,
-          };
+          const allHidden =
+            s.sidebarCollapsed && s.simulatorCollapsed && (!isTrainerMode || s.trainerCollapsed);
+          // One click: hide Left + Middle + Bottom panels at once (fullscreen editor).
+          // Click again: restore all three.
+          return allHidden
+            ? { trainerCollapsed: false, sidebarCollapsed: false, simulatorCollapsed: false }
+            : { trainerCollapsed: true, sidebarCollapsed: true, simulatorCollapsed: true };
         }),
       setSidebarWidth: (sidebarWidth: number) =>
         set({ sidebarWidth: Math.max(180, Math.min(520, sidebarWidth)) }),
@@ -394,6 +386,7 @@ export const useStudioStore = create<StudioState>()(
       name: 'kampus_nestjs_studio_v3',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
+        theme: state.theme,
         mode: state.mode,
         trainerTab: state.trainerTab,
         currentSubconceptId: state.currentSubconceptId,

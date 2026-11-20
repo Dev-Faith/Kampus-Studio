@@ -1,6 +1,27 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { motion } from 'framer-motion';
+import {
+  AlertTriangle,
+  Box,
+  CheckCircle2,
+  Cog,
+  Database,
+  FileCode2,
+  Filter,
+  FlaskConical,
+  Link2,
+  Maximize2,
+  Minimize2,
+  Radio,
+  Repeat,
+  Shield,
+  Sliders,
+  Tag,
+  Target,
+  Warehouse,
+} from 'lucide-react';
 import { useStudioStore } from '../store/useStudioStore';
 import type { FileEntry } from '../types/studio';
 
@@ -13,45 +34,123 @@ interface CodeWorkbenchProps {
 
 function PanelIcon({ variant }: { variant: 'left' | 'middle' | 'bottom' }) {
   return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.2" />
-      {variant === 'left' && <rect x="2.1" y="3.1" width="3.6" height="9.8" rx="1" fill="currentColor" />}
-      {variant === 'middle' && (
-        <rect x="5.3" y="3.1" width="4.2" height="9.8" fill="currentColor" opacity="0.9" />
-      )}
-      {variant === 'bottom' && <rect x="2.1" y="9" width="11.8" height="3.9" rx="1" fill="currentColor" />}
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="2" stroke="currentColor" strokeWidth="1.25" />
+      {variant === 'left' && <rect x="2.2" y="3.2" width="3.5" height="9.6" rx="0.8" fill="currentColor" />}
+      {variant === 'middle' && <rect x="5.4" y="3.2" width="4.2" height="9.6" fill="currentColor" opacity="0.9" />}
+      {variant === 'bottom' && <rect x="2.2" y="9" width="11.6" height="3.8" rx="0.8" fill="currentColor" />}
     </svg>
   );
 }
 
-function MaximizeIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M2 6V2h4M14 6V2h-4M2 10v4h4M14 10v4h-4"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+function registerKampusMonacoThemes(monaco: any) {
+  if (!monaco?.editor?.defineTheme) return;
+
+  monaco.editor.defineTheme('kampus-atelier', {
+    base: 'vs-dark',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '6B6E7B', fontStyle: 'italic' },
+      { token: 'keyword', foreground: 'C4A7E7' },
+      { token: 'keyword.control', foreground: 'C4A7E7' },
+      { token: 'keyword.operator', foreground: 'F28B7D' },
+      { token: 'decorator', foreground: 'F5C26B' },
+      { token: 'annotation', foreground: 'F5C26B' },
+      { token: 'metatag', foreground: 'F5C26B' },
+      { token: 'string', foreground: '86EFAC' },
+      { token: 'string.escape', foreground: 'F5C26B' },
+      { token: 'number', foreground: 'FDBA74' },
+      { token: 'regexp', foreground: 'F5C26B' },
+      { token: 'type', foreground: '7DD3FC' },
+      { token: 'type.identifier', foreground: '7DD3FC' },
+      { token: 'identifier', foreground: 'EDEDEF' },
+      { token: 'delimiter', foreground: '8E909E' },
+      { token: 'delimiter.bracket', foreground: 'A1A1AA' },
+    ],
+    colors: {
+      'editor.background': '#09090B',
+      'editor.foreground': '#EDEDEF',
+      'editor.lineHighlightBackground': '#141419',
+      'editor.lineHighlightBorder': '#1E1E26',
+      'editor.selectionBackground': '#E8503A2E',
+      'editor.inactiveSelectionBackground': '#27272D88',
+      'editorLineNumber.foreground': '#45454F',
+      'editorLineNumber.activeForeground': '#E8503A',
+      'editorCursor.foreground': '#E8503A',
+      'editorIndentGuide.background': '#191920',
+      'editorIndentGuide.activeBackground': '#343440',
+      'editorGutter.background': '#09090B',
+      'editorWidget.background': '#16161C',
+      'editorWidget.border': '#2A2A34',
+      'editorBracketHighlight.foreground1': '#F5C26B',
+      'editorBracketHighlight.foreground2': '#C4A7E7',
+      'editorBracketHighlight.foreground3': '#7DD3FC',
+    },
+  });
+
+  monaco.editor.defineTheme('kampus-vellum', {
+    base: 'vs',
+    inherit: true,
+    rules: [
+      { token: 'comment', foreground: '8A8A93', fontStyle: 'italic' },
+      { token: 'keyword', foreground: '7C3AED' },
+      { token: 'decorator', foreground: 'B45309' },
+      { token: 'string', foreground: '15803D' },
+      { token: 'number', foreground: 'C2410C' },
+      { token: 'type', foreground: '0369A1' },
+      { token: 'type.identifier', foreground: '0369A1' },
+      { token: 'identifier', foreground: '18181B' },
+      { token: 'delimiter', foreground: '71717A' },
+    ],
+    colors: {
+      'editor.background': '#F5F4F0',
+      'editor.foreground': '#18181B',
+      'editor.lineHighlightBackground': '#ECEAE3',
+      'editor.selectionBackground': '#D4422C24',
+      'editorLineNumber.foreground': '#A1A1AA',
+      'editorLineNumber.activeForeground': '#D4422C',
+      'editorCursor.foreground': '#D4422C',
+      'editorIndentGuide.background': '#E5E3DC',
+      'editorGutter.background': '#F5F4F0',
+    },
+  });
 }
 
-function RestoreIcon() {
-  return (
-    <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-      <path
-        d="M6 2v4H2M10 2v4h4M6 14v-4H2M10 14v-4h4"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
+function getFileRoleIcon(fileName: string) {
+  const lower = fileName.toLowerCase();
+  const s = 13;
+  if (lower.endsWith('.spec.ts') || lower.endsWith('.test.ts'))
+    return <CheckCircle2 size={s} style={{ color: 'var(--green-fg)' }} />;
+  if (lower.endsWith('.controller.ts'))
+    return <Target size={s} style={{ color: 'var(--accent-fg)' }} />;
+  if (lower.endsWith('.service.ts'))
+    return <Cog size={s} style={{ color: 'var(--blue-fg)' }} />;
+  if (lower.endsWith('.module.ts'))
+    return <Warehouse size={s} style={{ color: 'var(--amber-fg)' }} />;
+  if (lower.endsWith('.dto.ts'))
+    return <Box size={s} style={{ color: 'var(--green-fg)' }} />;
+  if (lower.endsWith('.guard.ts'))
+    return <Shield size={s} style={{ color: 'var(--amber-fg)' }} />;
+  if (lower.endsWith('.interceptor.ts'))
+    return <Repeat size={s} style={{ color: 'var(--violet-fg)' }} />;
+  if (lower.endsWith('.pipe.ts'))
+    return <Filter size={s} style={{ color: 'var(--blue-fg)' }} />;
+  if (lower.endsWith('.filter.ts') || lower.endsWith('.exception.ts'))
+    return <AlertTriangle size={s} style={{ color: 'var(--red-fg)' }} />;
+  if (lower.endsWith('.config.ts'))
+    return <Sliders size={s} style={{ color: 'var(--violet-fg)' }} />;
+  if (lower.endsWith('.decorator.ts'))
+    return <Tag size={s} style={{ color: 'var(--amber-fg)' }} />;
+  if (lower.endsWith('.middleware.ts'))
+    return <Link2 size={s} style={{ color: 'var(--text-secondary)' }} />;
+  if (lower.endsWith('.listener.ts') || lower.endsWith('.event.ts'))
+    return <Radio size={s} style={{ color: 'var(--green-fg)' }} />;
+  if (lower.endsWith('.schema.ts') || lower.endsWith('.prisma'))
+    return <Database size={s} style={{ color: 'var(--blue-fg)' }} />;
+  if (lower.includes('sandbox'))
+    return <FlaskConical size={s} style={{ color: 'var(--accent-fg)' }} />;
+  return <FileCode2 size={s} style={{ color: 'var(--text-muted)' }} />;
 }
-
 
 export function CodeWorkbench({
   defaultFiles,
@@ -65,13 +164,14 @@ export function CodeWorkbench({
   const lastSavedAt = useStudioStore((s) => s.lastSavedAt);
   const editorHeightPercent = useStudioStore((s) => s.editorHeightPercent);
   const mode = useStudioStore((s) => s.mode);
+  const theme = useStudioStore((s) => s.theme);
   const sidebarCollapsed = useStudioStore((s) => s.sidebarCollapsed);
   const trainerCollapsed = useStudioStore((s) => s.trainerCollapsed);
   const simulatorCollapsed = useStudioStore((s) => s.simulatorCollapsed);
   const toggleSidebar = useStudioStore((s) => s.toggleSidebar);
   const toggleTrainer = useStudioStore((s) => s.toggleTrainer);
   const toggleSimulator = useStudioStore((s) => s.toggleSimulator);
-  const cycleCodeExpandStep = useStudioStore((s) => s.cycleCodeExpandStep);
+  const toggleFocusMode = useStudioStore((s) => s.toggleFocusMode);
   const sidebarWidth = useStudioStore((s) => s.sidebarWidth);
   const trainerPaneWidth = useStudioStore((s) => s.trainerPaneWidth);
 
@@ -82,9 +182,10 @@ export function CodeWorkbench({
   const editorInstanceRef = useRef<any>(null);
   const [monacoReady, setMonacoReady] = useState(false);
 
-  // Keep refs to latest code & change handler so async Monaco init never reads a stale closure
   const latestCodeRef = useRef<string>(activeFile.code);
   latestCodeRef.current = activeFile.code;
+  const themeRef = useRef<'dark' | 'light'>(theme);
+  themeRef.current = theme;
 
   const onCodeChangeRef = useRef<(val: string) => void>(() => {});
   onCodeChangeRef.current = (val: string) => {
@@ -99,6 +200,8 @@ export function CodeWorkbench({
       if (isUnmounted || !monacoMountRef.current || editorInstanceRef.current) return;
       const monaco = window.monaco;
       if (!monaco) return;
+
+      registerKampusMonacoThemes(monaco);
 
       monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
         target: monaco.languages.typescript.ScriptTarget.ES2020,
@@ -118,11 +221,20 @@ export function CodeWorkbench({
       const editor = monaco.editor.create(monacoMountRef.current, {
         value: latestCodeRef.current,
         language: 'typescript',
-        theme: 'vs-dark',
+        theme: themeRef.current === 'light' ? 'kampus-vellum' : 'kampus-atelier',
         automaticLayout: true,
         minimap: { enabled: false },
         fontSize: 13,
-        fontFamily: "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+        lineHeight: 22,
+        fontLigatures: true,
+        fontFamily: "'JetBrains Mono', ui-monospace, Consolas, monospace",
+        padding: { top: 14, bottom: 18 },
+        renderLineHighlight: 'all',
+        bracketPairColorization: { enabled: true },
+        guides: { indentation: true, highlightActiveIndentation: true },
+        smoothScrolling: true,
+        cursorBlinking: 'smooth',
+        cursorSmoothCaretAnimation: 'on',
         tabSize: 2,
         scrollBeyondLastLine: false,
       });
@@ -185,6 +297,13 @@ export function CodeWorkbench({
     };
   }, []);
 
+  // Sync live theme to Monaco
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.monaco?.editor?.setTheme) {
+      window.monaco.editor.setTheme(theme === 'light' ? 'kampus-vellum' : 'kampus-atelier');
+    }
+  }, [theme, monacoReady]);
+
   // Sync editor value whenever activeFile or its code changes
   useEffect(() => {
     const editor = editorInstanceRef.current;
@@ -208,43 +327,12 @@ export function CodeWorkbench({
     editorHeightPercent,
   ]);
 
-  // 3-step progressive "large screen" state: Middle → Left → Bottom
   const isTrainerMode = mode === 'trainer';
-  const stepFlags = isTrainerMode
-    ? [trainerCollapsed, sidebarCollapsed, simulatorCollapsed]
-    : [sidebarCollapsed, simulatorCollapsed];
-  let stepsDone = 0;
-  for (const done of stepFlags) {
-    if (!done) break;
-    stepsDone++;
-  }
-  const totalSteps = stepFlags.length;
-  const allExpanded = stepsDone === totalSteps;
-  const nextStepNames = isTrainerMode
-    ? ['Hide Lesson panel', 'Hide Modules panel', 'Hide HTTP panel (fullscreen editor)']
-    : ['Hide Modules panel', 'Hide HTTP panel (fullscreen editor)'];
-  const expandTitle = allExpanded
-    ? 'Restore all panels'
-    : `Focus mode — step ${stepsDone + 1} of ${totalSteps}: ${nextStepNames[stepsDone]}`;
-
-  const getFileRoleIcon = (fileName: string) => {
-    const lower = fileName.toLowerCase();
-    if (lower.endsWith('.spec.ts') || lower.endsWith('.test.ts')) return '✅';
-    if (lower.endsWith('.controller.ts')) return '🎯';
-    if (lower.endsWith('.service.ts')) return '⚙️';
-    if (lower.endsWith('.module.ts')) return '🏛️';
-    if (lower.endsWith('.dto.ts')) return '📦';
-    if (lower.endsWith('.guard.ts')) return '🛡️';
-    if (lower.endsWith('.interceptor.ts')) return '🔄';
-    if (lower.endsWith('.pipe.ts')) return '🧪';
-    if (lower.endsWith('.filter.ts') || lower.endsWith('.exception.ts')) return '🚨';
-    if (lower.endsWith('.config.ts')) return '🔧';
-    if (lower.endsWith('.decorator.ts')) return '🏷️';
-    if (lower.endsWith('.middleware.ts')) return '⛓️';
-    if (lower.endsWith('.listener.ts') || lower.endsWith('.event.ts')) return '📡';
-    if (lower.endsWith('.schema.ts') || lower.endsWith('.prisma')) return '💎';
-    return '📄';
-  };
+  const focusActive =
+    sidebarCollapsed && simulatorCollapsed && (!isTrainerMode || trainerCollapsed);
+  const expandTitle = focusActive
+    ? 'Exit fullscreen — restore all panels'
+    : 'Fullscreen editor — hide all panels';
 
   return (
     <div
@@ -255,13 +343,14 @@ export function CodeWorkbench({
         <div className="file-tabs" role="tablist" aria-label="Open files">
           {files.map((f, idx) => {
             const hasTodo = f.code?.includes('// TODO');
+            const isActive = idx === activeFileIndex;
             return (
               <button
                 key={f.name + idx}
                 type="button"
                 role="tab"
-                aria-selected={idx === activeFileIndex}
-                className={`file-tab ${idx === activeFileIndex ? 'active' : ''}`}
+                aria-selected={isActive}
+                className={`file-tab ${isActive ? 'active' : ''}`}
                 onClick={() => setActiveFileIndex(idx)}
                 title={
                   hasTodo
@@ -269,6 +358,13 @@ export function CodeWorkbench({
                     : `${f.name} (${files.length} files in this workspace)`
                 }
               >
+                {isActive && (
+                  <motion.span
+                    layoutId="file-tab-indicator"
+                    className="file-tab-underline"
+                    transition={{ type: 'spring', stiffness: 520, damping: 38 }}
+                  />
+                )}
                 <span className="file-tab-icon" aria-hidden="true">
                   {getFileRoleIcon(f.name)}
                 </span>
@@ -314,36 +410,38 @@ export function CodeWorkbench({
 
           <button
             type="button"
-            className={`tb-expand ${stepsDone > 0 ? 'is-on' : ''}`}
-            onClick={cycleCodeExpandStep}
+            className={`tb-expand ${focusActive ? 'is-on' : ''}`}
+            onClick={toggleFocusMode}
+            aria-pressed={focusActive}
             title={expandTitle}
             aria-label={expandTitle}
           >
-            {allExpanded ? <RestoreIcon /> : <MaximizeIcon />}
-            <span className="tb-steps" aria-hidden="true">
-              {stepFlags.map((_, i) => (
-                <i key={i} className={i < stepsDone ? 'on' : ''} />
-              ))}
-            </span>
+            {focusActive ? <Minimize2 size={13} strokeWidth={2} /> : <Maximize2 size={13} strokeWidth={2} />}
+            <span className="tb-expand-label">{focusActive ? 'Exit' : 'Fullscreen'}</span>
           </button>
 
           <span className="tb-divider" aria-hidden="true" />
 
           <span
             className="save-status"
-            title={`${modeLabel} — edits auto-save to localStorage`}
+            title={
+              lastSavedAt
+                ? `${modeLabel} — Saved at ${lastSavedAt} in localStorage`
+                : `${modeLabel} — Edits auto-save to localStorage`
+            }
           >
             <i aria-hidden="true" />
-            {lastSavedAt ? `Saved ${lastSavedAt}` : 'Auto-save on'}
+            Saved
           </span>
 
           <button
             type="button"
-            className="btn btn-success btn-xs"
+            className="btn btn-verify btn-xs"
             title="Run automated exercise tests (Ctrl+Shift+Enter)"
             onClick={onVerifyExercise}
           >
-            ✓ Verify
+            <CheckCircle2 size={13} strokeWidth={2.2} />
+            Verify
           </button>
         </div>
       </div>

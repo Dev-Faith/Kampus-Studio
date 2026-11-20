@@ -15,8 +15,10 @@ import {
   type TestingChapter,
   type TestingHarnessItem,
 } from '../components/TestingMasteryView';
+import { ChevronUp } from 'lucide-react';
 import { CheatSheetView } from '../components/CheatSheetView';
 import { KampusTutorBot } from '../components/KampusTutorBot';
+import { CommandPalette } from '../components/CommandPalette';
 import type {
   CurriculumModule,
   DecoratorDecompilerItem,
@@ -32,6 +34,7 @@ import type {
 export default function StudioHomePage() {
   const [mounted, setMounted] = useState(false);
 
+  const theme = useStudioStore((s) => s.theme);
   const mode = useStudioStore((s) => s.mode);
   const setMode = useStudioStore((s) => s.setMode);
   const trainerTab = useStudioStore((s) => s.trainerTab);
@@ -64,6 +67,13 @@ export default function StudioHomePage() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Sync Obsidian Atelier (dark) / Architectural Vellum (light) theme attribute to <html>
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+  }, [theme]);
 
   const curriculum: CurriculumModule[] = useMemo(() => {
     if (!mounted || typeof window === 'undefined') return [];
@@ -173,7 +183,7 @@ export default function StudioHomePage() {
       : activeSubconcept.presets || [];
   }, [mode, activeTemplate, activeSubconcept, trainerTab]);
 
-  // Sync URL Hash (#/trainer/arch-controllers/learn) for deep-linking & browser back/forward
+  // Sync URL Hash (#/trainer/arch-controllers/learn) and live browser tab title
   useEffect(() => {
     if (!mounted || typeof window === 'undefined') return;
     const hash =
@@ -185,7 +195,20 @@ export default function StudioHomePage() {
     if (window.location.hash !== hash) {
       window.history.replaceState(null, '', hash);
     }
-  }, [mounted, mode, currentSubconceptId, trainerTab, currentTemplateId]);
+
+    const titleByMode: Record<string, string> = {
+      syntax: 'JS ↔ NestJS Rosetta Stone · Kampus Studio',
+      prisma: 'Prisma ORM Mastery · Kampus Studio',
+      mongoose: 'Mongoose ODM Mastery · Kampus Studio',
+      testing: 'Unit & E2E Testing · Kampus Studio',
+      sandbox: `${activeTemplate?.name || 'Sandbox IDE'} · Kampus Studio`,
+      cheatsheet: 'Architecture Lifecycle · Kampus Studio',
+    };
+    document.title =
+      mode === 'trainer' && activeSubconcept
+        ? `${activeSubconcept.code} ${activeSubconcept.title} · Kampus Studio`
+        : titleByMode[mode] || 'Kampus Studio — Interactive NestJS & Backend IDE';
+  }, [mounted, mode, currentSubconceptId, trainerTab, currentTemplateId, activeSubconcept, activeTemplate]);
 
   const buildRequestSpec = useCallback(() => {
     let headers: Record<string, string> = {};
@@ -542,31 +565,29 @@ export default function StudioHomePage() {
                 />
               </>
             ) : (
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '4px 12px',
-                  background: 'rgba(15, 23, 42, 0.92)',
-                  borderTop: '1px solid rgba(148, 163, 184, 0.18)',
-                  fontSize: 11.5,
-                  color: 'var(--text-muted)',
-                }}
-              >
-                <span>⬓ Bottom Panel (HTTP Simulator, Pipeline Trace &amp; Test Runner) hidden</span>
+              <div className="bottom-restore-bar">
+                <span>HTTP Simulator, Pipeline Trace &amp; Test Runner hidden</span>
                 <button
                   type="button"
                   className="btn btn-xs btn-secondary"
                   onClick={toggleSimulator}
                 >
-                  ⬆ Show Bottom Panel
+                  <ChevronUp size={13} strokeWidth={2} /> Show HTTP Panel
                 </button>
               </div>
             )}
           </section>
         </main>
       )}
+
+      <CommandPalette
+        allSubconcepts={allSubconcepts}
+        onSelectSubconcept={(sub) => selectSubconcept(sub, 'learn')}
+        onResetDb={() => {
+          window.NestSandboxEngine?.resetState();
+          bumpStateVersion();
+        }}
+      />
 
       <KampusTutorBot
         activeSubconcept={activeSubconcept}

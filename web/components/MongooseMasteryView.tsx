@@ -73,7 +73,7 @@ export function MongooseMasteryView({
     <section className="syntax-view">
       <aside className="syntax-sidebar">
         <div className="sidebar-header">
-          <span className="sidebar-label">🍃 MONGOOSE ODM MASTERY</span>
+          <span className="sidebar-label">Mongoose ODM Mastery</span>
           <input
             type="search"
             value={search}
@@ -145,7 +145,7 @@ export function MongooseMasteryView({
           >
             <div>
               <span className="badge badge-accent">MONGOOSE ODM + MONGODB ARCHITECTURE</span>
-              <h2>🍃 Mastering Mongoose (@nestjs/mongoose) Syntax &amp; Architectural Decisions</h2>
+              <h2>Mastering Mongoose (@nestjs/mongoose) Syntax &amp; Architectural Decisions</h2>
               <p className="muted-text">
                 Master every Mongoose construct in the <strong>Kampus PropTech</strong> document layer—when
                 to embed vs reference (`ObjectId`), why <code>.lean().exec()</code> and{' '}

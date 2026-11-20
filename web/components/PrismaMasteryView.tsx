@@ -73,7 +73,7 @@ export function PrismaMasteryView({
     <section className="syntax-view">
       <aside className="syntax-sidebar">
         <div className="sidebar-header">
-          <span className="sidebar-label">💎 PRISMA ORM MASTERY</span>
+          <span className="sidebar-label">Prisma ORM Mastery</span>
           <input
             type="search"
             value={search}
@@ -145,7 +145,7 @@ export function PrismaMasteryView({
           >
             <div>
               <span className="badge badge-accent">PRISMA ORM + POSTGRESQL ARCHITECTURE</span>
-              <h2>💎 Mastering Prisma ORM Syntax &amp; Architectural Decisions in NestJS</h2>
+              <h2>Mastering Prisma ORM Syntax &amp; Architectural Decisions in NestJS</h2>
               <p className="muted-text">
                 Understand every Prisma construct in the <strong>Kampus PropTech</strong> data layer—how{' '}
                 <code>schema.prisma</code> compiles to PostgreSQL DDL &amp; indexes, how{' '}

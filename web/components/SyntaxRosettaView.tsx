@@ -101,7 +101,7 @@ export function SyntaxRosettaView({
             <div className="decompiler-header">
               <div>
                 <h3>
-                  🔍 Interactive Decorator Decompiler: What Does <code>@</code> Actually Execute in
+                  Interactive Decorator Decompiler: What Does <code>@</code> Actually Execute in
                   Vanilla JS?
                 </h3>
                 <p className="muted-text">
