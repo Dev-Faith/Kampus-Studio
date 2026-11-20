@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kampus Studio — Interactive NestJS, Prisma &amp; Mongoose Backend IDE</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/css/ide.css" />
+</head>
+<body>
+  <!-- ===================================================================== -->
+  <!-- TOP HEADER BAR                                                        -->
+  <!-- ===================================================================== -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-logo" title="Kampus Studio">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+      </div>
+      <div class="brand-text">
+        <div style="display:flex; align-items:center; gap:7px;">
+          <span class="brand-title">Kampus Studio</span>
+          <span class="brand-pro-badge">NESTJS + ORM LAB</span>
+        </div>
+        <span class="brand-subtitle">Student Housing &amp; Rent Escrow Backend Trainer &amp; Live IDE</span>
+      </div>
+    </div>
+
+    <nav class="mode-switcher" role="tablist">
+      <button id="mode-trainer-btn" class="mode-btn active" data-mode="trainer">
+        <span class="mode-btn-icon">🎓</span> Concept Trainer <span class="mode-btn-tag">32</span>
+      </button>
+      <button id="mode-syntax-btn" class="mode-btn" data-mode="syntax">
+        <span class="mode-btn-icon">🧬</span> JS &harr; NestJS
+      </button>
+      <button id="mode-prisma-btn" class="mode-btn" data-mode="prisma">
+        <span class="mode-btn-icon">💎</span> Prisma ORM
+      </button>
+      <button id="mode-mongoose-btn" class="mode-btn" data-mode="mongoose">
+        <span class="mode-btn-icon">🍃</span> Mongoose ODM
+      </button>
+      <button id="mode-testing-btn" class="mode-btn" data-mode="testing">
+        <span class="mode-btn-icon">✅</span> Unit &amp; E2E Testing
+      </button>
+      <button id="mode-sandbox-btn" class="mode-btn" data-mode="sandbox">
+        <span class="mode-btn-icon">🧪</span> Sandbox IDE
+      </button>
+      <button id="mode-cheatsheet-btn" class="mode-btn" data-mode="cheatsheet">
+        <span class="mode-btn-icon">🗺️</span> Architecture
+      </button>
+    </nav>
+
+    <div class="topbar-actions">
+      <button id="toggle-sidebar-btn" class="btn btn-ghost btn-sm" title="Collapse or expand left curriculum sidebar">
+        ◀ Sidebar
+      </button>
+      <button id="toggle-trainer-btn" class="btn btn-ghost btn-sm" title="Collapse or expand Concept/Exercise lesson pane">
+        ◀ Lesson
+      </button>
+      <div class="progress-pill" title="Completed hands-on exercises">
+        <span class="progress-dot"></span>
+        <span id="progress-text">0 / 26 Exercises Passed</span>
+      </div>
+      <button id="reset-state-btn" class="btn btn-ghost btn-sm" title="Reset in-memory Database, Cache, and Rate Limit counters">
+        ↺ Reset DB &amp; Cache
+      </button>
+      <a href="/docs" target="_blank" class="btn btn-ghost btn-sm" title="Open live Swagger API docs">
+        Swagger ↗
+      </a>
+    </div>
+  </header>
+
+  <!-- ===================================================================== -->
+  <!-- MAIN IDE WORKSPACE                                                    -->
+  <!-- ===================================================================== -->
+  <main class="workspace" id="workspace-main">
+    <!-- 1. LEFT SIDEBAR: Curriculum Tree (Trainer Mode) / Templates (Sandbox Mode) -->
+    <aside class="sidebar" id="sidebar">
+      <div id="sidebar-trainer-view">
+        <div class="sidebar-header">
+          <span class="sidebar-label">CURRICULUM MODULES</span>
+          <input
+            type="search"
+            id="concept-search"
+            class="search-input"
+            placeholder="Filter concepts (guards, jwt, pipe...)"
+          />
+        </div>
+        <div id="curriculum-tree" class="curriculum-tree"></div>
+      </div>
+
+      <div id="sidebar-sandbox-view" class="hidden">
+        <div class="sidebar-header">
+          <span class="sidebar-label">SANDBOX TEMPLATES</span>
+          <p class="sidebar-hint">Load a complete multi-file NestJS architecture to experiment freely on the go.</p>
+        </div>
+        <div id="sandbox-template-list" class="template-list"></div>
+
+        <div class="sidebar-header" style="margin-top: 16px;">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span class="sidebar-label">WORKSPACE FILES</span>
+            <button id="add-file-btn" class="btn btn-xs btn-secondary">+ New File</button>
+          </div>
+        </div>
+        <div id="sandbox-file-list" class="file-list"></div>
+      </div>
+    </aside>
+
+    <!-- Draggable Splitter: Sidebar <-> Trainer Pane -->
+    <div id="resizer-sidebar" class="resizer-v" title="Drag left/right to resize Sidebar (double-click to reset)"></div>
+
+    <!-- 2. LESSON / EXERCISE PANE (Visible in Trainer Mode) -->
+    <section class="trainer-pane" id="trainer-pane">
+      <div class="trainer-header">
+        <div class="concept-meta">
+          <span id="concept-code-badge" class="badge badge-accent">1.1</span>
+          <span id="concept-difficulty-badge" class="badge badge-outline">Beginner</span>
+          <span id="concept-status-badge" class="badge badge-success hidden">✓ Completed</span>
+        </div>
+        <h1 id="concept-title" class="concept-title">Controllers, Routing &amp; Parameters</h1>
+        <p id="concept-summary" class="concept-summary"></p>
+
+        <div class="trainer-tabs">
+          <button id="tab-learn-btn" class="trainer-tab active" data-tab="learn">
+            📖 Concept &amp; Example
+          </button>
+          <button id="tab-exercise-btn" class="trainer-tab" data-tab="exercise">
+            🏋️ Hands-on Exercise
+          </button>
+        </div>
+      </div>
+
+      <!-- Sub-tab A: Theory & Explanation -->
+      <div id="trainer-learn-content" class="trainer-body">
+        <div class="lifecycle-mini-bar" id="lifecycle-mini-bar" title="Where this concept runs in the NestJS request lifecycle">
+          <span class="lc-node" data-lc="middleware">Middleware</span>
+          <span class="lc-arrow">→</span>
+          <span class="lc-node" data-lc="guard">Guards</span>
+          <span class="lc-arrow">→</span>
+          <span class="lc-node" data-lc="interceptor">Interceptors</span>
+          <span class="lc-arrow">→</span>
+          <span class="lc-node" data-lc="pipe">Pipes</span>
+          <span class="lc-arrow">→</span>
+          <span class="lc-node" data-lc="handler">Controller/Service</span>
+          <span class="lc-arrow">→</span>
+          <span class="lc-node" data-lc="filter">Filters</span>
+        </div>
+
+        <div id="concept-theory-html" class="prose"></div>
+
+        <!-- Toggleable Architectural Rationale ("Why Each Decision Was Made") -->
+        <div class="rationale-toggle-wrap">
+          <button id="toggle-rationale-btn" type="button" class="rationale-toggle-btn">
+            <span>🔬 Show Detailed Explanation (Why We Build It This Way)</span>
+            <span id="rationale-chevron">▾</span>
+          </button>
+          <div id="concept-rationale-drawer" class="rationale-drawer hidden"></div>
+        </div>
+
+        <div class="lesson-actions-card">
+          <div>
+            <strong>Interactive Code Loaded in IDE &rarr;</strong>
+            <p>Edit the code on the right or click a preset request to see how NestJS executes it.</p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="load-example-btn" class="btn btn-secondary btn-sm">
+              ↺ Reset Example Code
+            </button>
+            <button id="start-exercise-cta" class="btn btn-primary btn-sm">
+              Start Exercise &rarr;
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sub-tab B: Guided Coding Exercise -->
+      <div id="trainer-exercise-content" class="trainer-body hidden">
+        <div class="exercise-card">
+          <div class="exercise-card-header">
+            <span class="badge badge-warning">CODING CHALLENGE</span>
+            <h3 id="exercise-title">Exercise Title</h3>
+          </div>
+          <div id="exercise-prompt" class="prose"></div>
+
+          <div class="exercise-toolbar">
+            <button id="run-exercise-btn" class="btn btn-success">
+              ✓ Run &amp; Verify Exercise
+            </button>
+            <button id="load-starter-btn" class="btn btn-secondary btn-sm">
+              ↺ Reset Starter Code
+            </button>
+            <button id="toggle-hint-btn" class="btn btn-ghost btn-sm">
+              💡 Show Hint
+            </button>
+            <button id="load-solution-btn" class="btn btn-ghost btn-sm">
+              👁️ Load Solution
+            </button>
+          </div>
+
+          <div id="exercise-hints-box" class="hints-box hidden"></div>
+          <div id="exercise-inline-results" class="exercise-inline-results"></div>
+        </div>
+      </div>
+
+      <footer class="trainer-footer">
+        <button id="prev-concept-btn" class="btn btn-ghost btn-sm">&larr; Previous</button>
+        <span id="concept-position-label" class="muted-text">1 of 26</span>
+        <button id="next-concept-btn" class="btn btn-secondary btn-sm">Next Concept &rarr;</button>
+      </footer>
+    </section>
+
+    <!-- Draggable Splitter: Trainer Pane <-> Code Workbench -->
+    <div id="resizer-trainer" class="resizer-v" title="Drag left/right to resize Lesson/Exercise Pane (double-click to reset)"></div>
+
+    <!-- 3. RIGHT WORKBENCH: Code Editor + HTTP Request Simulator + Output Dock -->
+    <section class="workbench" id="workbench">
+      <!-- Top half: Multi-file Code Editor -->
+      <div class="editor-section">
+        <div class="editor-tabbar">
+          <div id="file-tabs" class="file-tabs"></div>
+          <div class="editor-actions">
+            <span id="persist-saved-badge" class="badge badge-outline" style="color:#4ade80; border-color:rgba(34,197,94,0.35);" title="Code edits are automatically persisted to localStorage across page refreshes">
+              ● Auto-Saved
+            </span>
+            <span id="code-mode-indicator" class="code-mode-pill">Example Code</span>
+            <button id="quick-run-btn" class="btn btn-primary btn-xs" title="Send Request (Ctrl+Enter)">
+              ▶ Send Request
+            </button>
+            <button id="quick-verify-btn" class="btn btn-success btn-xs" title="Run Exercise Tests (Ctrl+Shift+Enter)">
+              ✓ Verify Exercise
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-container">
+          <div id="monaco-mount" class="monaco-mount"></div>
+          <textarea
+            id="fallback-editor"
+            class="fallback-editor"
+            spellcheck="false"
+            aria-label="TypeScript Code Editor"
+          ></textarea>
+        </div>
+      </div>
+
+      <!-- Draggable Splitter: Code Editor <-> HTTP Simulator -->
+      <div id="resizer-workbench" class="resizer-h" title="Drag up/down to resize Code Editor vs HTTP Simulator (double-click for 50/50)"></div>
+
+      <!-- Bottom half: HTTP Request Client + Output & Lifecycle Inspector -->
+      <div class="simulator-section" id="simulator-section">
+        <!-- Request Bar -->
+        <div class="request-bar">
+          <div class="request-controls">
+            <select id="req-method" class="method-select" aria-label="HTTP Method">
+              <option value="GET">GET</option>
+              <option value="POST">POST</option>
+              <option value="PATCH">PATCH</option>
+              <option value="PUT">PUT</option>
+              <option value="DELETE">DELETE</option>
+            </select>
+            <input
+              type="text"
+              id="req-url"
+              class="url-input"
+              value="/posts"
+              placeholder="/route/path?query=1"
+            />
+            <button id="send-req-btn" class="btn btn-primary">
+              ▶ Send
+            </button>
+            <button
+              id="burst-req-btn"
+              class="btn btn-secondary"
+              title="Fire 5 rapid requests in a row to test Rate Limiting (429) and Caching (HIT/MISS)"
+            >
+              ⚡ Burst 5x
+            </button>
+          </div>
+
+          <!-- Preset Scenarios + Auth Persona Switcher -->
+          <div class="presets-row">
+            <div class="presets-group">
+              <span class="row-label">PRESETS:</span>
+              <div id="preset-chips" class="preset-chips"></div>
+            </div>
+
+            <div class="persona-group">
+              <span class="row-label">KAMPUS PERSONA:</span>
+              <select id="auth-persona-select" class="persona-select" title="Automatically sets Authorization or x-api-key header">
+                <option value="none">👤 Guest Student (No Auth Header)</option>
+                <option value="user">🎓 Adaobi (Student — role: student, tier: basic)</option>
+                <option value="moderator">🔑 Chidi (Landlord — role: landlord, tier: verified)</option>
+                <option value="admin">🛡️ Grace (Housing Officer — role: admin, tier: campus-admin)</option>
+                <option value="apikey">🏦 Partner Key (x-api-key: kampus-partner-key)</option>
+                <option value="expired">⌛ Expired Student JWT</option>
+              </select>
+              <button id="toggle-req-payload-btn" class="btn btn-ghost btn-xs">
+                Headers &amp; Body ▾
+              </button>
+            </div>
+          </div>
+
+          <!-- Collapsible Headers & JSON Body Editors -->
+          <div id="req-payload-drawer" class="req-payload-drawer hidden">
+            <div class="payload-col">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label class="payload-label">Request Headers (JSON)</label>
+                <button id="headers-json-badge" type="button" class="btn btn-xs btn-ghost" style="padding:1px 6px; font-size:10.5px; color:#4ade80;">
+                  ✓ Valid JSON
+                </button>
+              </div>
+              <textarea id="req-headers-input" class="payload-textarea" spellcheck="false">{}</textarea>
+            </div>
+            <div class="payload-col">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <label class="payload-label">Request Body (JSON)</label>
+                <button id="body-json-badge" type="button" class="btn btn-xs btn-ghost" style="padding:1px 6px; font-size:10.5px; color:#4ade80;">
+                  ✓ Valid JSON
+                </button>
+              </div>
+              <textarea id="req-body-input" class="payload-textarea" spellcheck="false"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Draggable Splitter: Request Payload Bar <-> Inspector Tabs Dock -->
+        <div id="resizer-inspector" class="resizer-h" title="Drag up/down to adjust Inspector Tabs height vs Request Payload / Editor (double-click to reset)"></div>
+
+        <!-- Output Inspector Tabs -->
+        <div class="inspector-dock" id="inspector-dock">
+          <div class="inspector-tabs">
+            <button class="inspector-tab active" data-out="response">
+              📦 HTTP Response
+              <span id="resp-status-badge" class="status-pill status-idle">Ready</span>
+              <span id="resp-time-badge" class="muted-text"></span>
+            </button>
+            <button class="inspector-tab" data-out="pipeline">
+              🧅 Pipeline Lifecycle Trace
+              <span id="pipeline-count-badge" class="badge badge-xs">0</span>
+            </button>
+            <button class="inspector-tab" data-out="tests">
+              🧪 Exercise Test Runner
+              <span id="tests-count-badge" class="badge badge-xs"></span>
+            </button>
+            <button class="inspector-tab" data-out="state">
+              🗄️ DB, Cache &amp; Logs
+            </button>
+
+            <div class="inspector-tabs-actions">
+              <button id="expand-inspector-btn" type="button" class="btn btn-ghost btn-xs" title="Expand Inspector Tabs dock so you can see full Response, Pipeline, and Test output">
+                ⬆ Expand Tabs
+              </button>
+              <button id="balance-split-btn" type="button" class="btn btn-ghost btn-xs" title="Restore balanced 50/50 split between Editor and Output">
+                ⬌ 50/50
+              </button>
+              <button id="expand-editor-btn" type="button" class="btn btn-ghost btn-xs" title="Expand TypeScript Code Editor height">
+                ⬇ Tall Editor
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab 1: HTTP Response -->
+          <div id="out-response" class="inspector-panel">
+            <div id="resp-headers-bar" class="resp-headers-bar"></div>
+            <pre id="resp-body-pre" class="code-output">// Click "▶ Send" or any Preset above to execute your NestJS code and inspect the response.</pre>
+          </div>
+
+          <!-- Tab 2: Visual Pipeline Trace -->
+          <div id="out-pipeline" class="inspector-panel hidden">
+            <div id="pipeline-steps-list" class="pipeline-steps-list"></div>
+          </div>
+
+          <!-- Tab 3: Exercise Test Results -->
+          <div id="out-tests" class="inspector-panel hidden">
+            <div id="test-results-list" class="test-results-list"></div>
+          </div>
+
+          <!-- Tab 4: Live State Inspector (DB, Cache, Rate Limits, Events, Console) -->
+          <div id="out-state" class="inspector-panel hidden">
+            <div id="state-inspector-grid" class="state-grid"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===================================================================== -->
+  <!-- LIFECYCLE & ARCHITECTURE CHEAT SHEET VIEW                             -->
+  <!-- ===================================================================== -->
+  <section id="cheatsheet-view" class="cheatsheet-view hidden">
+    <div class="cheatsheet-container">
+      <h2>NestJS Backend Engineering Cheat Sheet &amp; Mental Models</h2>
+      <p class="muted-text">Quick reference for when to use Middleware, Guards, Interceptors, Pipes, and Exception Filters.</p>
+
+      <div class="cs-onion-diagram">
+        <div class="cs-stage cs-mw">
+          <strong>1. Middleware</strong>
+          <span>Correlation IDs, CORS, raw body parsing</span>
+        </div>
+        <div class="cs-arrow">→</div>
+        <div class="cs-stage cs-guard">
+          <strong>2. Guards</strong>
+          <span>Rate limit, JWT AuthN, RBAC &amp; Ownership AuthZ</span>
+        </div>
+        <div class="cs-arrow">→</div>
+        <div class="cs-stage cs-int">
+          <strong>3. Interceptors (Pre)</strong>
+          <span>Cache lookup, timer start, request logging</span>
+        </div>
+        <div class="cs-arrow">→</div>
+        <div class="cs-stage cs-pipe">
+          <strong>4. Pipes</strong>
+          <span>ParseInt, Trim, DTO ValidationPipe</span>
+        </div>
+        <div class="cs-arrow">→</div>
+        <div class="cs-stage cs-ctrl">
+          <strong>5. Controller &amp; Service</strong>
+          <span>Business rules, DB transactions, domain events</span>
+        </div>
+        <div class="cs-arrow">→</div>
+        <div class="cs-stage cs-int">
+          <strong>6. Interceptors (Post)</strong>
+          <span>RxJS map() envelope, redact secrets, timeout()</span>
+        </div>
+        <div class="cs-arrow">→</div>
+        <div class="cs-stage cs-filter">
+          <strong>7. Exception Filters</strong>
+          <span>Catch errors, map DB constraints &rarr; JSON error</span>
+        </div>
+      </div>
+
+      <div class="cs-grid">
+        <div class="cs-card">
+          <h3>When do I use which building block?</h3>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th>Construct</th>
+                <th>Single Responsibility</th>
+                <th>Knows Target Handler?</th>
+                <th>Can Transform Response?</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>Middleware</code></td>
+                <td>Mutate raw <code>req</code>/<code>res</code> (e.g. <code>x-request-id</code>)</td>
+                <td>No (runs before routing)</td>
+                <td>No</td>
+              </tr>
+              <tr>
+                <td><code>Guard</code></td>
+                <td>Allow or deny access (<code>boolean</code> or throw 401/403/429)</td>
+                <td>Yes (<code>ExecutionContext</code> + <code>Reflector</code>)</td>
+                <td>No</td>
+              </tr>
+              <tr>
+                <td><code>Interceptor</code></td>
+                <td>Wrap execution before &amp; after via RxJS stream</td>
+                <td>Yes (<code>ExecutionContext</code>)</td>
+                <td>Yes (<code>map</code>, <code>tap</code>, <code>timeout</code>, short-circuit cache)</td>
+              </tr>
+              <tr>
+                <td><code>Pipe</code></td>
+                <td>Transform or validate a single route argument</td>
+                <td>Receives <code>ArgumentMetadata</code></td>
+                <td>Transforms input argument only</td>
+              </tr>
+              <tr>
+                <td><code>ExceptionFilter</code></td>
+                <td>Turn thrown errors into structured HTTP error JSON</td>
+                <td>Receives <code>ArgumentsHost</code></td>
+                <td>Replaces error response</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="cs-card">
+          <h3>HTTP Status Codes Every Backend Engineer Must Know</h3>
+          <table class="cs-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>NestJS Exception</th>
+                <th>When to Use It</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>200 / 201 / 204</code></td>
+                <td>—</td>
+                <td><code>200</code> OK, <code>201</code> Resource Created, <code>204</code> Deleted (no body)</td>
+              </tr>
+              <tr>
+                <td><code>400 Bad Request</code></td>
+                <td><code>BadRequestException</code></td>
+                <td>Malformed input, failed DTO validation or pipe parsing</td>
+              </tr>
+              <tr>
+                <td><code>401 Unauthorized</code></td>
+                <td><code>UnauthorizedException</code></td>
+                <td>Missing, invalid, or expired authentication credentials</td>
+              </tr>
+              <tr>
+                <td><code>403 Forbidden</code></td>
+                <td><code>ForbiddenException</code></td>
+                <td>Authenticated, but insufficient role or not resource owner</td>
+              </tr>
+              <tr>
+                <td><code>404 Not Found</code></td>
+                <td><code>NotFoundException</code></td>
+                <td>Entity ID does not exist (or hidden behind disabled feature flag)</td>
+              </tr>
+              <tr>
+                <td><code>408 Request Timeout</code></td>
+                <td><code>RequestTimeoutException</code></td>
+                <td>Downstream call exceeded SLA in <code>TimeoutInterceptor</code></td>
+              </tr>
+              <tr>
+                <td><code>409 Conflict</code></td>
+                <td><code>ConflictException</code></td>
+                <td>Duplicate unique key (e.g. email already registered)</td>
+              </tr>
+              <tr>
+                <td><code>422 Unprocessable</code></td>
+                <td><code>UnprocessableEntityException</code></td>
+                <td>Valid syntax, but breaks a domain rule (e.g. insufficient funds)</td>
+              </tr>
+              <tr>
+                <td><code>429 Too Many Requests</code></td>
+                <td><code>ThrottlerException</code></td>
+                <td>Client exceeded rate limit window; include <code>Retry-After</code></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- NESTJS <-> VANILLA JS SYNTAX ROSETTA STONE VIEW                       -->
+  <!-- ===================================================================== -->
+  <section id="syntax-view" class="syntax-view hidden">
+    <aside class="syntax-sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-label">SYNTAX ROSETTA STONE</span>
+        <input
+          type="search"
+          id="syntax-search"
+          class="search-input"
+          placeholder="Search syntax (@Controller, pipe, readonly...)"
+        />
+      </div>
+      <div id="syntax-nav-tree" class="curriculum-tree"></div>
+    </aside>
+
+    <div class="syntax-main">
+      <div class="syntax-hero">
+        <div>
+          <span class="badge badge-accent">SYNTAX TRANSLATOR</span>
+          <h2>NestJS &harr; Vanilla JavaScript &amp; Express Rosetta Stone</h2>
+          <p class="muted-text">
+            Every NestJS decorator, TypeScript keyword, DI token, and RxJS operator is just familiar Vanilla JavaScript under the hood. Compare them side-by-side below.
+          </p>
+        </div>
+      </div>
+
+      <!-- Interactive Decorator Decompiler -->
+      <div class="decompiler-card">
+        <div class="decompiler-header">
+          <div>
+            <h3>🔍 Interactive Decorator Decompiler: What Does <code>@</code> Actually Execute in Vanilla JS?</h3>
+            <p class="muted-text">Click any NestJS decorator below to see the exact plain JavaScript function that runs when your file loads.</p>
+          </div>
+          <div id="decompiler-pills" class="decompiler-pills"></div>
+        </div>
+        <div id="decompiler-body" class="decompiler-body"></div>
+      </div>
+
+      <!-- Deep-Dive Syntax Comparison Chapters -->
+      <div id="syntax-cards-container" class="syntax-cards-container"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- PRISMA ORM MASTERY & ARCHITECTURAL DECISIONS VIEW                     -->
+  <!-- ===================================================================== -->
+  <section id="prisma-view" class="syntax-view hidden">
+    <aside class="syntax-sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-label">💎 PRISMA ORM MASTERY</span>
+        <input
+          type="search"
+          id="prisma-search"
+          class="search-input"
+          placeholder="Search Prisma (select, include, upsert, $transaction, P2002...)"
+        />
+      </div>
+      <div id="prisma-nav-tree" class="curriculum-tree"></div>
+    </aside>
+
+    <div class="syntax-main">
+      <div class="syntax-hero">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div>
+            <span class="badge badge-accent">PRISMA ORM + POSTGRESQL ARCHITECTURE</span>
+            <h2>💎 Mastering Prisma ORM Syntax &amp; Architectural Decisions in NestJS</h2>
+            <p class="muted-text">
+              Understand every Prisma construct in the <strong>Kampus PropTech</strong> data layer—how <code>schema.prisma</code> compiles to PostgreSQL DDL &amp; indexes, how <code>PrismaService</code> queries work under the hood, and <strong>why</strong> each pattern is chosen over dangerous alternatives.
+            </p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="prisma-try-queries-btn" type="button" class="btn btn-primary btn-sm">
+              ▶ Run Live Prisma Queries in IDE (12.1)
+            </button>
+            <button id="prisma-try-tx-btn" type="button" class="btn btn-success btn-sm">
+              ▶ Run Live Prisma $transaction in IDE (12.2)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive schema.prisma Decompiler -->
+      <div id="prisma-schema-decompiler" class="decompiler-card">
+        <div class="decompiler-header">
+          <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:8px;">
+            <div>
+              <h3>🗂️ Interactive <code>schema.prisma</code> Decompiler &amp; PostgreSQL DDL Explorer</h3>
+              <p class="muted-text">Click any Prisma schema attribute below to inspect the exact PostgreSQL SQL it generates and the engineering reason behind the decision.</p>
+            </div>
+            <button id="toggle-full-prisma-schema-btn" type="button" class="btn btn-ghost btn-xs">
+              📄 View Full Kampus schema.prisma
+            </button>
+          </div>
+          <div id="full-prisma-schema-box" class="syntax-code-pane hidden" style="width:100%; margin-top:8px;">
+            <div class="syntax-code-header nest-hdr">
+              <span>prisma/schema.prisma (Complete Kampus PropTech Data Model)</span>
+              <span>Prisma Schema</span>
+            </div>
+            <pre id="full-prisma-schema-pre" class="syntax-code-pre"></pre>
+          </div>
+          <div id="prisma-schema-pills" class="decompiler-pills" style="margin-top:6px;"></div>
+        </div>
+        <div id="prisma-schema-body" class="decompiler-body"></div>
+      </div>
+
+      <!-- Prisma Mastery Chapters -->
+      <div id="prisma-cards-container" class="syntax-cards-container"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- MONGOOSE ODM MASTERY & ARCHITECTURAL DECISIONS VIEW                   -->
+  <!-- ===================================================================== -->
+  <section id="mongoose-view" class="syntax-view hidden">
+    <aside class="syntax-sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-label">🍃 MONGOOSE ODM MASTERY</span>
+        <input
+          type="search"
+          id="mongoose-search"
+          class="search-input"
+          placeholder="Search Mongoose (@Prop, .lean, populate, $inc, $addToSet, E11000...)"
+        />
+      </div>
+      <div id="mongoose-nav-tree" class="curriculum-tree"></div>
+    </aside>
+
+    <div class="syntax-main">
+      <div class="syntax-hero">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div>
+            <span class="badge badge-accent">MONGOOSE ODM + MONGODB ARCHITECTURE</span>
+            <h2>🍃 Mastering Mongoose (@nestjs/mongoose) Syntax &amp; Architectural Decisions</h2>
+            <p class="muted-text">
+              Master every Mongoose construct in the <strong>Kampus PropTech</strong> document layer—when to embed vs reference (<code>ObjectId</code>), why <code>.lean().exec()</code> and <code>{ new: true, runValidators: true }</code> are critical, and how filter-guarded <code>$inc</code> / <code>$addToSet</code> operators eliminate race conditions.
+            </p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="mongoose-try-queries-btn" type="button" class="btn btn-primary btn-sm">
+              ▶ Run Live Mongoose Queries in IDE (13.1)
+            </button>
+            <button id="mongoose-try-atomic-btn" type="button" class="btn btn-success btn-sm">
+              ▶ Run Live Mongoose Atomic Ops in IDE (13.2)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive @Schema / @Prop Decompiler -->
+      <div id="mongoose-schema-decompiler" class="decompiler-card">
+        <div class="decompiler-header">
+          <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:8px;">
+            <div>
+              <h3>🗂️ Interactive <code>@Schema()</code> &amp; <code>@Prop()</code> Decompiler &amp; MongoDB BSON/Index Explorer</h3>
+              <p class="muted-text">Click any Mongoose schema pattern below to see the exact MongoDB BSON/Index behavior and the architectural reason behind the decision.</p>
+            </div>
+            <button id="toggle-full-mongoose-schema-btn" type="button" class="btn btn-ghost btn-xs">
+              📄 View Full Kampus Mongoose Schemas
+            </button>
+          </div>
+          <div id="full-mongoose-schema-box" class="syntax-code-pane hidden" style="width:100%; margin-top:8px;">
+            <div class="syntax-code-header nest-hdr">
+              <span>kampus-mongoose.schemas.ts (Complete @nestjs/mongoose Data Model)</span>
+              <span>TypeScript</span>
+            </div>
+            <pre id="full-mongoose-schema-pre" class="syntax-code-pre"></pre>
+          </div>
+          <div id="mongoose-schema-pills" class="decompiler-pills" style="margin-top:6px;"></div>
+        </div>
+        <div id="mongoose-schema-body" class="decompiler-body"></div>
+      </div>
+
+      <!-- Mongoose Mastery Chapters -->
+      <div id="mongoose-cards-container" class="syntax-cards-container"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- UNIT & INTEGRATION TESTING MASTERY VIEW                               -->
+  <!-- ===================================================================== -->
+  <section id="testing-view" class="syntax-view hidden">
+    <aside class="syntax-sidebar">
+      <div class="sidebar-header">
+        <span class="sidebar-label">✅ UNIT &amp; E2E TESTING MASTERY</span>
+        <input
+          type="search"
+          id="testing-search"
+          class="search-input"
+          placeholder="Search (@nestjs/testing, jest.fn, supertest, overrideGuard...)"
+        />
+      </div>
+      <div id="testing-nav-tree" class="curriculum-tree"></div>
+    </aside>
+
+    <div class="syntax-main">
+      <div class="syntax-hero">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div>
+            <span class="badge badge-accent">@NESTJS/TESTING + JEST SPIES + SUPERTEST PIPELINE</span>
+            <h2>✅ Mastering Unit &amp; Integration Testing on Kampus PropTech</h2>
+            <p class="muted-text">
+              Learn how to test every layer of the <strong>Kampus Student Housing &amp; Escrow</strong> backend—from millisecond isolated service unit tests with <code>Test.createTestingModule()</code> &amp; <code>jest.fn()</code> to full HTTP pipeline integration tests with <code>createNestApplication()</code>, <code>ValidationPipe</code>, <code>.overrideGuard()</code>, and <code>supertest</code>.
+            </p>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap;">
+            <button id="testing-try-unit-btn" type="button" class="btn btn-primary btn-sm">
+              ▶ Run Live Unit Test Suite in IDE (14.1)
+            </button>
+            <button id="testing-try-e2e-btn" type="button" class="btn btn-success btn-sm">
+              ▶ Run Live Supertest E2E Suite in IDE (14.2)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Interactive Test Harness Decompiler -->
+      <div id="testing-harness-decompiler" class="decompiler-card">
+        <div class="decompiler-header">
+          <div style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:8px;">
+            <div>
+              <h3>🧪 Interactive <code>@nestjs/testing</code>, <code>jest.fn()</code> &amp; <code>supertest</code> Harness Decompiler</h3>
+              <p class="muted-text">Click any testing construct below to inspect what happens inside the NestJS IoC container and Jest runtime.</p>
+            </div>
+            <button id="toggle-full-testing-spec-btn" type="button" class="btn btn-ghost btn-xs">
+              📄 View Full Kampus Unit + E2E .spec.ts Blueprint
+            </button>
+          </div>
+          <div id="full-testing-spec-box" class="syntax-code-pane hidden" style="width:100%; margin-top:8px;">
+            <div class="syntax-code-header nest-hdr">
+              <span>kampus-booking.spec.ts (Complete Unit + Integration Test Blueprint)</span>
+              <span>TypeScript / Jest</span>
+            </div>
+            <pre id="full-testing-spec-pre" class="syntax-code-pre"></pre>
+          </div>
+          <div id="testing-harness-pills" class="decompiler-pills" style="margin-top:6px;"></div>
+        </div>
+        <div id="testing-harness-body" class="decompiler-body"></div>
+      </div>
+
+      <!-- Testing Mastery Chapters -->
+      <div id="testing-cards-container" class="syntax-cards-container"></div>
+    </div>
+  </section>
+
+  <!-- ===================================================================== -->
+  <!-- CONTEXT-AWARE KAMPUS AI TUTOR & CODE DIAGNOSTIC BOT                   -->
+  <!-- ===================================================================== -->
+  <button id="tutor-fab-btn" type="button" class="tutor-fab" title="Open Context-Aware Kampus AI Tutor & Code Diagnostic Bot">
+    <span class="tutor-fab-icon">🤖</span>
+    <span>Ask Kampus Tutor</span>
+    <span id="tutor-fab-badge" class="tutor-fab-badge">1.1 · Hostel</span>
+  </button>
+
+  <aside id="tutor-drawer" class="tutor-drawer hidden" aria-label="Kampus AI Tutor">
+    <div class="tutor-header">
+      <div class="tutor-header-left">
+        <div class="tutor-avatar">🤖</div>
+        <div>
+          <div class="tutor-title">Kampus Context-Aware AI Tutor</div>
+          <div class="tutor-subtitle">Reads your live lesson, editor code, HTTP trace &amp; test assertions</div>
+        </div>
+      </div>
+      <div class="tutor-header-actions">
+        <button id="tutor-apikey-toggle-btn" type="button" class="btn btn-sm btn-ghost" title="Optional: Configure Gemini API Key">
+          🔑 API Key
+        </button>
+        <button id="tutor-clear-btn" type="button" class="btn btn-sm btn-ghost" title="Clear conversation">
+          🗑️
+        </button>
+        <button id="tutor-close-btn" type="button" class="btn btn-sm btn-ghost" title="Close Tutor">
+          ✕
+        </button>
+      </div>
+    </div>
+    <div id="tutor-context-bar" class="tutor-context-bar"></div>
+    <div id="tutor-apikey-bar" class="tutor-apikey-bar hidden">
+      <input
+        type="password"
+        id="tutor-apikey-input"
+        class="tutor-apikey-input"
+        placeholder="Optional: Paste Google Gemini API Key (AIza...) for open-ended LLM chat"
+      />
+    </div>
+    <div id="tutor-chips" class="tutor-chips"></div>
+    <div id="tutor-messages" class="tutor-messages"></div>
+    <form id="tutor-form" class="tutor-input-bar">
+      <textarea
+        id="tutor-input"
+        class="tutor-input"
+        rows="2"
+        placeholder="Ask anything about this lesson, why a decision was made, or how to fix your code... (Enter to send)"
+      ></textarea>
+      <button id="tutor-send-btn" type="submit" class="tutor-send-btn">Ask →</button>
+    </form>
+  </aside>
+
+  <!-- Load TypeScript Compiler (Local /vendor/ts/typescript.js with CDN fallback) -->
+  <script src="/vendor/ts/typescript.js" onerror="
+    var s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/typescript/5.4.5/typescript.min.js';
+    document.head.appendChild(s);
+  "></script>
+  <!-- Sandbox Runtime Engine, Curriculum, Monaco Types, Syntax Rosetta Stone, Prisma & Mongoose Mastery, AI Tutor -->
+  <script src="/js/monaco-types.js"></script>
+  <script src="/js/engine.js"></script>
+  <script src="/js/curriculum-part1.js"></script>
+  <script src="/js/curriculum-part2.js"></script>
+  <script src="/js/architectural-rationale.js"></script>
+  <script src="/js/syntax-bridge.js"></script>
+  <script src="/js/prisma-mastery.js"></script>
+  <script src="/js/mongoose-mastery.js"></script>
+  <script src="/js/testing-mastery.js"></script>
+  <script src="/js/kampus-tutor.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

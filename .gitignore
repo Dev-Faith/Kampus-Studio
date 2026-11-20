@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+data
+uploads
+.env
+.env.local
+.next
+web/.next
+web/out
+.vercel
+*.log
+.DS_Store
