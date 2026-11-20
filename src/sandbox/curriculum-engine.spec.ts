@@ -279,5 +279,21 @@ describe('NestJS Interactive Trainer Engine & Curriculum Verification', () => {
     expect(filesConnectRes.answer).toContain('kampus-fee.service.ts');
     expect(filesConnectRes.answer).toContain('kampus-fee.config.ts');
     expect(filesConnectRes.answer).toContain('kampus-quote.module.ts');
+
+    // 7. Regression test for specific multi-part question about kampus-fee.config.ts interface + variable + provide/useValue
+    const feeConfigRes = await win.KampusAiTutor.askTutor(
+      'Looking at the kampus-fee.config.ts file, why do we have the interface then the variable definition? also, in module, why do we have the provide set to the type and the useValue set to the variable itself?',
+      {
+        mode: 'trainer',
+        trainerTab: 'learn',
+        subconcept: sub12,
+        currentFiles: sub12.exampleFiles,
+        activeFileIndex: 0,
+      },
+    );
+    expect(feeConfigRes.answer).not.toContain('How the 4 Open Files');
+    expect(feeConfigRes.answer).toContain('Direct Answer');
+    expect(feeConfigRes.answer).toContain('DEFAULT_KAMPUS_FEE_CONFIG');
+    expect(feeConfigRes.answer).toContain('useValue');
   });
 });

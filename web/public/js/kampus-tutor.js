@@ -28,13 +28,59 @@
         'If you remove `private` (writing just `constructor(db: DatabaseService)`), `db` is only a local variable inside the constructor and `this.db` will be `undefined` inside your route methods! If you remove `: DatabaseService` (or type it as `: any`), NestJS cannot see which class to inject.',
     },
     {
+      id: 'race-condition-concurrency',
+      keywords: ['race condition', 'race conditions', 'toctou', 'double booking', 'concurrent requests', 'concurrency bug'],
+      regex: /\brace\s+conditions?\b|\bTOCTOU\b/i,
+      title: 'What Is a Race Condition in Backend Engineering (and How to Prevent It)?',
+      directAnswer:
+        'A **race condition** (specifically **Time-of-Check to Time-of-Use / TOCTOU**) happens when two or more concurrent operations read and modify shared state at the same time, and the final outcome depends on the exact millisecond timing in which they finish.\n\n' +
+        '**🏠 Concrete Kampus PropTech Example:**\n' +
+        'Suppose Cedar Court Studio has **`availableBeds = 1`**, and two students (**Adaobi** and **Tunde**) click *"Book Room"* at the exact same millisecond:\n' +
+        '1. **Naive Code (Read-Modify-Write in JS):**\n' +
+        '   - Request A (Adaobi) runs `SELECT availableBeds` -> sees `1`.\n' +
+        '   - Request B (Tunde) runs `SELECT availableBeds` -> *also* sees `1` before Request A finishes writing!\n' +
+        '   - Both pass `if (room.availableBeds > 0)` and both write `availableBeds = 0` (or `-1`). You just **double-booked** 1 bed to 2 students!\n\n' +
+        '**🛠️ The 3 Ways We Prevent Race Conditions in NestJS:**\n' +
+        '1. **Atomic Database Updates (`{ decrement: 1 }` / `$inc` with a filter guard):** Push the check into a single atomic SQL/MongoDB statement (`WHERE id = 1 AND availableBeds >= 1` with `availableBeds: { decrement: 1 }`) so the database engine serializes the two requests at the row/document lock level.\n' +
+        '2. **ACID Transactions (`prisma.$transaction(async (tx) => ...)`):** Wrap multi-table operations (decrementing bed count + creating booking + deducting wallet balance) in an isolated transaction so either all steps succeed atomically or all roll back.\n' +
+        '3. **No Shared Mutable Globals (`process.env` or mutable singleton properties):** In tests and request handlers, never mutate global state (`process.env.FEE = ...`) across concurrent requests or parallel Jest workers.',
+      whatIfOmitted:
+        'Without atomic updates or transactions, high-traffic bursts (like 50 students clicking "Book" when hostel portals open) cause double-bookings, negative wallet balances, and corrupted inventory counts.',
+    },
+    {
+      id: 'config-file-interface-token-usevalue',
+      keywords: [
+        'kampus-fee.config.ts',
+        'kampus-policy.config.ts',
+        'default_kampus_fee_config',
+        'default_kampus_policy',
+        'interface then the variable',
+        'provide set to',
+        'usevalue set to',
+      ],
+      regex: /(kampus-fee\.config|kampus-policy\.config|DEFAULT_KAMPUS_FEE_CONFIG|DEFAULT_KAMPUS_POLICY|interface.*variable|provide.*useValue)/i,
+      title: 'Why `kampus-fee.config.ts` Has a Token, an `interface`, and a Value Variable — and How `{ provide, useValue }` Works in `@Module`',
+      directAnswer:
+        'Great observation! Let\'s break down both parts of your question:\n\n' +
+        '**1. Why `kampus-fee.config.ts` defines 3 distinct things:**\n' +
+        '- **`export const KAMPUS_FEE_CONFIG = \'KAMPUS_FEE_CONFIG\'` (The Runtime DI Token):** A string constant that survives TypeScript compilation into JavaScript. NestJS needs this as the lookup key (address) in its Dependency Injection map.\n' +
+        '- **`export interface KampusFeeConfig { ... }` (The Compile-Time Type Shape):** Tells TypeScript what properties exist (`escrowFeePercent: number; inspectionFee: number`) so your editor gives autocomplete and type-safety. **Why not just use the interface alone?** Because TypeScript **completely erases all `interface` declarations at compile time**—`KampusFeeConfig` does not exist when Node.js runs the code!\n' +
+        '- **`export const DEFAULT_KAMPUS_FEE_CONFIG: KampusFeeConfig = { ... }` (The Runtime Data Variable):** The actual JavaScript object holding the concrete numbers (`{ escrowFeePercent: 5, inspectionFee: 10 }`) typed against `KampusFeeConfig`.\n\n' +
+        '**2. In `kampus-quote.module.ts`, why `{ provide: KAMPUS_FEE_CONFIG, useValue: DEFAULT_KAMPUS_FEE_CONFIG }`?**\n' +
+        '- Look closely at the casing: `provide: KAMPUS_FEE_CONFIG` is **not** set to the `KampusFeeConfig` interface type (which would fail because interfaces disappear at runtime!)—it is set to the **UPPER_SNAKE_CASE token constant** `KAMPUS_FEE_CONFIG` (`\'KAMPUS_FEE_CONFIG\'`).\n' +
+        '- **`provide: KAMPUS_FEE_CONFIG`** sets the **lookup key** in NestJS\'s DI container (`container.set(\'KAMPUS_FEE_CONFIG\', ...)`), which matches `@Inject(KAMPUS_FEE_CONFIG)` in `KampusFeeService`.\n' +
+        '- **`useValue: DEFAULT_KAMPUS_FEE_CONFIG`** sets the **actual runtime object** that NestJS injects into `private readonly config: KampusFeeConfig` whenever a service asks for `@Inject(KAMPUS_FEE_CONFIG)`.',
+      whatIfOmitted:
+        'If you tried to write `provide: KampusFeeConfig` (the `interface`), TypeScript throws `\'KampusFeeConfig\' only refers to a type, but is being used as a value here`. And separating the token (`KAMPUS_FEE_CONFIG`) from the value (`DEFAULT_KAMPUS_FEE_CONFIG`) lets you swap `useValue` in unit tests (e.g., `{ provide: KAMPUS_FEE_CONFIG, useValue: { escrowFeePercent: 10, inspectionFee: 0 } }`) without changing a single line of `KampusFeeService`!',
+    },
+    {
       id: 'inject-token-interface-erasure',
       keywords: ['@inject', 'inject(', 'custom token', 'kampus_fee_config', 'kampus_policy', 'cache_manager', 'type erasure', 'interface token'],
       regex: /@Inject\b|KAMPUS_FEE_CONFIG|KAMPUS_POLICY|CACHE_MANAGER|custom\s+token/i,
       title: 'Why `@Inject(TOKEN)` Is Required Even When You Have a TypeScript Interface',
       directAnswer:
         'TypeScript **interfaces and type aliases are completely erased at compile time**—they do not exist in the compiled JavaScript that Node.js runs! If you write `constructor(private readonly config: KampusFeeConfig)` without `@Inject(...)`, TypeScript compiles the parameter type to generic `Object`, so NestJS has no idea what to inject.\n\n' +
-        'Adding `@Inject(KAMPUS_FEE_CONFIG)` attaches a **runtime string or Symbol token** (`"KAMPUS_FEE_CONFIG"`) to parameter index `0`, which NestJS matches against `{ provide: KAMPUS_FEE_CONFIG, useValue: ... }` in your `@Module()` file.',
+        'Adding `@Inject(KAMPUS_FEE_CONFIG)` attaches a **runtime string or Symbol token** (`"KAMPUS_FEE_CONFIG"`) to parameter index `0`, which NestJS matches against `{ provide: KAMPUS_FEE_CONFIG, useValue: DEFAULT_KAMPUS_FEE_CONFIG }` in your `@Module()` file.',
       whatIfOmitted:
         'Without `@Inject(TOKEN)`, NestJS sees `design:paramtypes = [Object]` and throws `UnknownDependenciesException: Nest can\'t resolve dependencies of the Service (?)`.',
     },
@@ -1081,15 +1127,22 @@
       return explainCurrentArchitecturalWhy(ctx);
     }
 
+    const asksAboutSpecificFileOrCode =
+      /\b([a-z0-9-]+\.(ts|prisma|js)|interface|variable|provide|usevalue|useclass|usefactory|constructor|readonly|decorator|method|function|line|token)\b/i.test(
+        q,
+      );
+
     if (
-      /\b(files?|tabs?)\b.*\b(connect|connected|work\s+together|relate|wired|link|role|do)\b/i.test(q) ||
-      /\b(connect|wired|relate)\b.*\b(files?|tabs?)\b/i.test(q) ||
-      q.includes('open files') ||
-      q.includes('each file') ||
-      q.includes('what are these files') ||
-      q.includes('explain all files') ||
-      q.includes('other tabs') ||
-      q.includes('files in the ide')
+      !asksAboutSpecificFileOrCode &&
+      (q === '🗂️ how do the open files in this lesson connect?' ||
+        /\b(how\s+do|how\s+are)\s+(the\s+|these\s+|all\s+)?(open\s+)?(files?|tabs?)\b.*\b(connect|connected|work\s+together|relate|wired|link)\b/i.test(
+          q,
+        ) ||
+        /\b(connect|wired|relate)\b.*\b(open\s+)?(files?|tabs?)\b/i.test(q) ||
+        q.includes('how do these files connect') ||
+        q.includes('how are the files connected') ||
+        q.includes('what are these files') ||
+        q.includes('explain all files'))
     ) {
       return explainHowLessonFilesConnect(ctx);
     }
@@ -1136,13 +1189,16 @@
     matchedConcepts.sort((a, b) => b.score - a.score);
 
     if (matchedConcepts.length > 0) {
-      const bestConcept = matchedConcepts[0].concept;
-      lastAnsweredTopic = bestConcept.title;
-      responseBlocks.push(
-        `### 🎯 Direct Answer: ${bestConcept.title}\n\n` +
-          `${bestConcept.directAnswer}\n\n` +
-          `**⚠️ What Happens If You Omit or Change It?**\n${bestConcept.whatIfOmitted}`,
-      );
+      const topConcepts = matchedConcepts.filter((m, idx) => idx === 0 || (idx === 1 && m.score >= 16));
+      for (const item of topConcepts) {
+        const c = item.concept;
+        lastAnsweredTopic = c.title;
+        responseBlocks.push(
+          `### 🎯 Direct Answer: ${c.title}\n\n` +
+            `${c.directAnswer}\n\n` +
+            `**⚠️ What Happens If You Omit or Change It?**\n${c.whatIfOmitted}`,
+        );
+      }
     }
 
     // 4. Locate & Quote Exact Matching Lines from the Student's Open IDE Tabs (`ctx.currentFiles`)
@@ -1329,13 +1385,6 @@
    */
   async function askTutor(question, ctx, apiKey, history) {
     const cleanKey = String(apiKey || '').trim();
-    if (!cleanKey) {
-      return {
-        source: 'built-in',
-        answer: answerQuestionLocally(question, ctx, history),
-      };
-    }
-
     const sub = ctx.subconcept || ctx.activeSubconcept;
     const filesText = (ctx.currentFiles || [])
       .map((f, idx) => `// [Tab ${idx + 1}${idx === (ctx.activeFileIndex || 0) ? ' - ACTIVE TAB' : ''}] File: ${f.name}\n${f.code}`)
@@ -1367,6 +1416,40 @@
       .join('\n\n');
 
     const recentHistory = Array.isArray(history) ? history.slice(-6) : [];
+
+    // 1. Try the Next.js Server API route (`/api/tutor`) which reads GEMINI_API_KEY directly from `.env` on disk
+    if (typeof fetch === 'function') {
+      try {
+        const serverResp = await fetch('/api/tutor', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            question,
+            systemPrompt,
+            history: recentHistory,
+            apiKey: cleanKey,
+          }),
+        });
+        if (serverResp && serverResp.ok) {
+          const serverData = await serverResp.json();
+          if (serverData && serverData.ok && serverData.answer) {
+            return {
+              source: 'gemini-api',
+              answer: serverData.answer,
+            };
+          }
+        }
+      } catch (_serverErr) {
+        // Not running behind Next.js `/api/tutor` (e.g., Jest unit test or static mode) — continue below
+      }
+    }
+
+    if (!cleanKey) {
+      return {
+        source: 'built-in',
+        answer: verifiedLocalAnswer,
+      };
+    }
 
     try {
       // Support OpenAI (sk-...) or Groq (gsk_...) keys automatically in addition to Gemini (AIza...)
@@ -1414,7 +1497,11 @@
           { role: 'user', parts: [{ text: question }] },
         ];
 
-        const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+        const candidateModels = [
+          'gemini-3-flash-preview',
+          'gemini-3.8-flash',
+          'gemini-3.1-flash-lite-preview',
+        ];
         for (const modelName of candidateModels) {
           const resp = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(cleanKey)}`,
@@ -1431,7 +1518,12 @@
             continue;
           }
           const data = await resp.json();
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          const parts = data?.candidates?.[0]?.content?.parts || [];
+          const text =
+            parts
+              .filter((p) => !p?.thought && typeof p?.text === 'string')
+              .map((p) => p.text)
+              .join('\n') || parts?.[0]?.text;
           if (text) {
             return {
               source: 'gemini-api',

@@ -132,7 +132,7 @@ export function KampusTutorBot({ activeSubconcept, currentFiles }: KampusTutorBo
 
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Load saved Gemini API key from localStorage if present, otherwise use GEMINI_API_KEY from .env
+  // Load saved Gemini API key from localStorage if present, otherwise use GEMINI_API_KEY from .env (or /api/tutor)
   useEffect(() => {
     if (typeof window !== 'undefined') {
       const savedKey = (window.localStorage.getItem('kampus_gemini_api_key') || '').trim();
@@ -143,11 +143,10 @@ export function KampusTutorBot({ activeSubconcept, currentFiles }: KampusTutorBo
         setApiKey(ENV_GEMINI_KEY);
         setUsingEnvKey(true);
       } else {
-        fetch('/api/v1/sandbox/tutor-config')
+        fetch('/api/tutor')
           .then((r) => (r.ok ? r.json() : null))
           .then((data) => {
-            if (data?.geminiApiKey) {
-              setApiKey(String(data.geminiApiKey).trim());
+            if (data?.configured) {
               setUsingEnvKey(true);
             }
           })
@@ -440,7 +439,7 @@ export function KampusTutorBot({ activeSubconcept, currentFiles }: KampusTutorBo
                   <span>
                     {msg.role === 'assistant'
                       ? msg.source === 'gemini-api'
-                        ? '✨ Kampus Tutor (Gemini 2.5 Flash)'
+                        ? '✨ Kampus Tutor (Gemini 3 Flash • Live AI)'
                         : '🤖 Kampus Tutor (Context Engine)'
                       : '👤 You'}
                   </span>
